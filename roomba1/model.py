@@ -1,6 +1,7 @@
 from mesa import Model
 from mesa.time import RandomActivation
 from mesa.space import MultiGrid
+from mesa.datacollection import DataCollector
 from agent import  Edificio, Semaforo, Calle , Destino, Coche
 
 class RandomModel(Model):
@@ -14,6 +15,23 @@ class RandomModel(Model):
         self.height = height
         self.destinos = []
         self.reservas = {}
+        self.next_id = 1
+
+        # Contadores para métricas
+        self.coches_creados = 0
+        self.coches_destino = 0
+        self.pasos_totales = 0
+        self.accidentes = 0
+        self.total_accidentes = 0
+
+        self.datacollector = DataCollector(
+            model_reporters={
+                "Coches Creados": lambda m: m.coches_creados,
+                "Coches al Destino": lambda m: m.coches_destino,
+                "Promedio Pasos al Destino": self._calcular_promedio_pasos,
+                "Accidentes": lambda m: m.total_accidentes,
+            }
+        )
 
         # Inicializar edificios y semáforos basados en el mapa
         self._initialize_canvas(mapa)
@@ -73,20 +91,47 @@ class RandomModel(Model):
             (self.height - 1, self.width - 1)  # Esquina inferior derecha
         ]
         position = self.random.choice(corners)  # Seleccionar una esquina aleatoria
-        
-        # Seleccionar un destino aleatorio
-        
 
-
+        #Se le asigna un destino aleatorio
         destino_coche = self.random.choice(self.destinos)
-        coche = Coche(f"Coche-{position[0]}-{position[1]}", self, destino_coche)
-        print("coche creado en",position, "con destino", destino_coche.pos)
+        coche = Coche(f"Coche-{self.next_id}", self, destino_coche)
+        self.next_id += 1
         self.grid.place_agent(coche, position)
         self.schedule.add(coche)
+        self.coches_creados += 1
+
+    def _calcular_promedio_pasos(self):
+        """Calcula el promedio de pasos hacia el destino."""
+        return self.pasos_totales / self.coches_destino if self.coches_destino > 0 else 0
+
+    def _contar_accidentes(self):
+        """Cuenta celdas con más de un coche en el paso actual."""
+        accidentes_en_paso = 0  # Accidentes solo de este paso
+        for cell in self.grid.coord_iter():
+            agentes, (x, y) = cell
+            coches = [a for a in agentes if isinstance(a, Coche)]
+            if len(coches) > 1:  # Más de un coche en la misma celda
+                accidentes_en_paso += 1
+
+        self.accidentes = accidentes_en_paso  # Actualizar accidentes del paso actual
+        self.total_accidentes += accidentes_en_paso  # Accidentes totales
+
 
     def step(self):
         """Avanza la simulación un paso."""
         self.step_counter += 1
-        if self.step_counter % 10 == 0:
+        if self.step_counter % 1 == 0:
             self._add_random_coche()
+        
+        # Registrar pasos totales al destino
+        for agent in self.schedule.agents:
+            if isinstance(agent, Coche) and agent.pos == agent.destino.pos:
+                self.coches_destino += 1
+                self.pasos_totales += self.step_counter
+
+        # Avanzar la simulación
         self.schedule.step()
+
+        # Recolectar datos
+        self._contar_accidentes()
+        self.datacollector.collect(self)

@@ -1,8 +1,7 @@
 from model import RandomModel, Edificio, Semaforo, Calle, Destino, Coche
-from mesa.visualization import CanvasGrid
-from mesa.visualization import ModularServer
+from mesa.visualization import CanvasGrid, ModularServer
+from mesa.visualization.modules import TextElement
 import mesa
-import random
 
 mapa = [
 ">>>>>>>>>>>>>>>d>>>>>>>>vv",
@@ -36,7 +35,16 @@ mapa = [
 height = len(mapa)  # Número de filas
 width = len(mapa[0]) if height > 0 else 0  # Longitud de la primera fila
 
-COLORS = {"green": "#00FF00", "red": "#FF0000"}
+# Clase para mostrar los datos dinámicos en texto
+class TrafficStats(TextElement):
+    def render(self, model):
+        """Devuelve una representación de texto de las estadísticas actuales del modelo."""
+        return (
+            f"Coches creados: {model.coches_creados} <br>"
+            f"Coches al destino: {model.coches_destino} <br>"
+            f"Promedio de pasos al destino: {model._calcular_promedio_pasos():.2f} <br>"
+            f"Accidentes: {model.total_accidentes}"
+        )
 
 
 def agent_portrayal(agent):
@@ -88,8 +96,9 @@ model_params = {
 }
 
 grid = CanvasGrid(agent_portrayal, width, height, 500, 500)
+traffic_stats = TrafficStats()
 
 
-server = ModularServer(RandomModel, [grid], "Random Agents", model_params)
+server = ModularServer(RandomModel, [grid, traffic_stats], "Random Agents", model_params)
 server.port = 8532
 server.launch()
