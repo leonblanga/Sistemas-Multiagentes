@@ -114,8 +114,7 @@ class RandomModel(Model):
                 accidentes_en_paso += 1
 
         self.accidentes = accidentes_en_paso  # Actualizar accidentes del paso actual
-        self.total_accidentes += accidentes_en_paso  # Accidentes totales
-
+        self.total_accidentes += accidentes_en_paso  # Accidentes acumulados
 
     def step(self):
         """Avanza la simulación un paso."""
