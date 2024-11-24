@@ -1,35 +1,36 @@
 from model import RandomModel, Edificio, Semaforo, Calle, Destino, Coche
-from mesa.visualization import CanvasGrid, PieChartModule
+from mesa.visualization import CanvasGrid
 from mesa.visualization import ModularServer
 import mesa
+import random
 
 mapa = [
-">>>>>>>>>>>>>>>s>>>>>>>>>>",
-">>>>>>>>>>>>>>>s>>>>>>>>>>",
-"^^##D###vv######SS#####Dvv",
+">>>>>>>>>>>>>>>d>>>>>>>>vv",
+">>>>>>>>>>>>>>>d>>>>>>>>vv",
+"^^##D###vv######AA#####Dvv",
 "^^######vv######^^######vv",
 "^^######vvD#####^^######vv",
 "^^######vv######^^######vv",
 "^^######vv######^^######vv",
-"^^###D##SS######^^####D#vv",
-"^^s<<<<<<<s<<<<<<<s<<<<<vv",
-"^^s<<<<<<<s<<<<<<<s<<<<<vv",
-"SS######vv######SS######vv",
+"^^###D##BB######^^####D#vv",
+"^^i<<<<<<<i<<<<<<<i<<<<<vv",
+"^^i<<<<<<<i<<<<<<<i<<<<<vv",
+"AA######vv######AA######vv",
 "^^######vv######^^######vv",
 "^^######vv######^^######vv",
 "^^D#####vv#####D^^######vv",
 "^^######vv######^^######vv",
-"^^######SS######^^######SS",
-"^^>>>>>s>>>>>>>>>>>>>>>svv",
-"^^>>>>>s>>>>>>>>>>>>>>>svv",
+"^^######BB######^^######BB",
+"^^>>>>>d>>>>>>>>>>>>>>>dvv",
+"^^>>>>>d>>>>>>>>>>>>>>>dvv",
 "^^######vv####D#########vv",
 "^^######vv##############vv",
 "^^#####Dvv#############Dvv",
 "^^######vv##############vv",
 "^^######vv##############vv",
-"^^######SS#########D####vv",
-"^^<<<<<<<<s<<<<<<<<<<<<<<<",
-"^^<<<<<<<<s<<<<<<<<<<<<<<D",
+"^^######BB#########D####vv",
+"^^<<<<<<<<i<<<<<<<<<<<<<<<",
+"^^<<<<<<<<i<<<<<<<<<<<<<<<",
 ]
 
 height = len(mapa)  # Número de filas
@@ -61,18 +62,21 @@ def agent_portrayal(agent):
         portrayal["Shape"] = "circle"
 
     if isinstance(agent, Calle):
-        portrayal["Shape"] = "./Resources/street.png" if agent.direction == 0 else "./Resources/street2.png" if agent.direction == 1 else "./Resources/street.png" if agent.direction == 2 else "./Resources/street2.png"
+        portrayal["Shape"] = "./Resources/Arriba.png" if agent.direction == 0 else "./Resources/derecha.png" if agent.direction == 1 else "./Resources/abajo.png" if agent.direction == 2 else "./Resources/Izquierda.png"
         portrayal["Layer"] = 0
 
     if isinstance(agent, Destino):
         portrayal["Layer"] = 1
-        portrayal["Shape"] = "./Resources/flag.png"
+        portrayal["Shape"] = "circle"
+        portrayal["r"] = 1
+        portrayal["Color"] = "gold"
 
     if isinstance(agent, Coche):
+        #Random color
         portrayal["Color"] = "blue"
         portrayal["Layer"] = 4
         portrayal["r"] = 1
-        portrayal["Shape"] = "./Resources/car.png" 
+        portrayal["Shape"] = "circle" 
     
         
     return portrayal
@@ -87,5 +91,5 @@ grid = CanvasGrid(agent_portrayal, width, height, 500, 500)
 
 
 server = ModularServer(RandomModel, [grid], "Random Agents", model_params)
-server.port = 8525
+server.port = 8532
 server.launch()

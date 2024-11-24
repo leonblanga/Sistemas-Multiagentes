@@ -1,0 +1,177 @@
+from mesa import Agent
+
+
+class Edificio(Agent):
+    """ Agente obstáculo estático que no se mueve. """
+    def __init__(self, unique_id, model):
+        super().__init__(unique_id, model)
+
+    def step(self):
+        pass  # Los obstáculos no se mueven
+
+class Semaforo(Agent):
+    """ Agente semáforo que alterna entre rojo y verde. """
+    def __init__(self, unique_id, model,change_interval):
+        super().__init__(unique_id, model)
+        self.change_interval = change_interval
+        self.time_elapsed = 0  # Tiempo transcurrido desde el último cambio
+        self.green = True  # Estado inicial del semáforo: verde
+
+    def step(self):
+        """Actualiza el estado del semáforo según el intervalo de cambio."""
+        self.time_elapsed += 1
+        if self.time_elapsed >= self.change_interval:
+            self.green = not self.green  # Cambiar de estado
+            self.time_elapsed = 0
+  
+class Calle(Agent):
+    def __init__(self, unique_id, model, direction):
+        super().__init__(unique_id, model)
+        self.direction = direction  # Dirección de la calle (0: horizontal derecha, 1: vertical arriba, 2: horizontal izquierda, 3: vertical abajo)
+
+    def step(self):
+        pass  # Los obstáculos no se mueven
+
+class Destino(Agent):
+    """ Agente obstáculo estático que no se mueve. """
+    def __init__(self, unique_id, model):
+        super().__init__(unique_id, model)
+        pos = self.pos
+        
+
+    def step(self):
+        pass  # Los obstáculos no se mueven
+
+class Coche(Agent):
+    """Agente que representa un coche."""
+    def __init__(self, unique_id, model, destino):
+        super().__init__(unique_id, model)
+        self.last_direction = None  # Almacena la última dirección (0, 1, 2, 3)
+        self.last_pos = None  # Almacena la última posición
+        self.destino = destino  # Almacena el destino actual
+        direction = None
+
+    def step(self):
+        """Mueve el coche respetando el sentido de la calle, el estado del semáforo y su última dirección."""
+        current_pos = self.pos
+        current_cell_contents = self.model.grid.get_cell_list_contents(current_pos)
+        neighbor_cell_contents = self.model.grid.get_neighbors(current_pos, moore=False, include_center=False)
+        possible_steps = []
+        new_pos = None
+
+
+        current_direction = None
+        for obj in current_cell_contents:
+            if isinstance(obj, Calle):  # Si la celda actual es una calle
+                current_direction = obj.direction
+                break 
+
+        
+        for neigh in neighbor_cell_contents:
+            if isinstance(neigh, Edificio):
+                return
+            elif isinstance(neigh, Coche):
+                return
+            elif isinstance(neigh, Destino):
+                new_pos = neigh.pos
+                return
+            elif isinstance(neigh, Semaforo):
+                if not neigh.green:
+                    return
+            elif isinstance(neigh,Calle):
+                if neigh.pos != self.last_pos:
+                    if self.pos[0] < neigh.pos[0] and neigh.direction != 3:
+                        possible_steps.append(neigh.pos)
+                    if self.pos[0] > neigh.pos[0] and neigh.direction != 1:
+                        possible_steps.append(neigh.pos)
+                    if self.pos[1] < neigh.pos[1] and neigh.direction != 2:
+                        possible_steps.append(neigh.pos)
+                    if self.pos[1] > neigh.pos[1] and neigh.direction != 0:
+                        possible_steps.append(neigh.pos)
+                
+                
+                
+                
+                    
+
+                
+            
+        if new_pos == None:
+            new_pos = self.random.choice(possible_steps)
+
+        print("posible steps", possible_steps)
+        
+
+
+        # Inicializar dirección como None
+        
+
+        # Verificar la dirección de la calle en la celda actual
+        for obj in current_cell_contents:
+            if isinstance(obj, Calle):  # Encontrar la calle actual
+                direction = obj.direction
+                break
+            elif isinstance(obj, Semaforo):  # Si está sobre un semáforo
+                # Buscar la calle adyacente en la última dirección
+                if self.last_direction is not None:
+                    x, y = current_pos
+                    if self.last_direction == 0:  # Arriba
+                        neighbor_pos = (x, y + 1)
+                    elif self.last_direction == 1:  # Derecha
+                        neighbor_pos = (x + 1, y)
+                    elif self.last_direction == 2:  # Abajo
+                        neighbor_pos = (x, y - 1)
+                    elif self.last_direction == 3:  # Izquierda
+                        neighbor_pos = (x - 1, y)
+                    else:
+                        return  # Dirección inválida
+
+                    if not self.model.grid.out_of_bounds(neighbor_pos):
+                        neighbor_contents = self.model.grid.get_cell_list_contents(neighbor_pos)
+                        for neighbor in neighbor_contents:
+                            if isinstance(neighbor, Calle):
+                                direction = neighbor.direction
+                                break
+
+        if direction is None:
+            return  # No se mueve si no se encuentra dirección válida.
+
+        # Determinar la nueva posición según la dirección
+        """x, y = current_pos
+        if direction == 0:  # Arriba
+            new_pos = (x, y + 1)
+        elif direction == 1:  # Derecha
+            new_pos = (x + 1, y)
+        elif direction == 2:  # Abajo
+            new_pos = (x, y - 1)
+        elif direction == 3:  # Izquierda
+            new_pos = (x - 1, y)
+        else:
+            return  # Dirección inválida"""
+
+        # Validar si la nueva posición está dentro de los límites
+        if self.model.grid.out_of_bounds(new_pos):
+            return  # No se mueve si la posición está fuera de los límites.
+
+        # Obtener el contenido de la nueva celda
+        new_cell_contents = self.model.grid.get_cell_list_contents(new_pos)
+
+        # Comprobar si hay un semáforo en la nueva posición
+        for obj in new_cell_contents:
+            if isinstance(obj, Semaforo):
+                if not obj.green:  # Si el semáforo está en rojo
+                    return  # El coche no avanza
+                else:
+                    break  # Si está en verde, puede avanzar
+            elif isinstance(obj, Coche):
+                return
+
+
+        # Validar que la nueva posición sea una calle o un semáforo
+        if not any(isinstance(obj, (Calle, Semaforo)) for obj in new_cell_contents):
+            return  # No se mueve si la celda no es válida
+
+        # Mover el coche a la nueva posición
+        self.model.grid.move_agent(self, new_pos)
+        self.last_direction = direction  # Actualizar la última dirección
+        self.last_pos = current_pos
