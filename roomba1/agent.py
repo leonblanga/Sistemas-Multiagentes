@@ -8,7 +8,7 @@ class Edificio(Agent):
         super().__init__(unique_id, model)
 
     def step(self):
-        pass  # Los obstáculos no se mueven
+        pass 
 
 class Semaforo(Agent):
     """ Agente semáforo que alterna entre rojo y verde. """
@@ -39,7 +39,7 @@ class Destino(Agent):
         super().__init__(unique_id, model)
 
     def step(self):
-        pass  # Los destinos no se mueven
+        pass
 
 class Coche(Agent):
     """Agente que representa un coche."""
@@ -59,10 +59,13 @@ class Coche(Agent):
         current_cell_contents = self.model.grid.get_cell_list_contents(current_pos)
         neighbor_cell_contents = self.model.grid.get_neighbors(current_pos, moore=False, include_center=False)
         possible_steps = []
+        visited_steps = []
         distancias = []
         new_pos = None
 
-        # Si el coche llega al destino, se elimina
+        print(f"Coche {self.unique_id} - Posiciones recientes: {self.recent_positions}")
+
+        # Si el coche llega al destino se elimina
         for obj in current_cell_contents:
             if isinstance(obj, Destino):
                 self.model.schedule.remove(self)
@@ -70,18 +73,23 @@ class Coche(Agent):
                 if current_pos in self.model.reservas:
                     del self.model.reservas[current_pos]
                 return
+            
+        def visit(pos):
+            result = pos in self.recent_positions  # AJUSTE: se añadió un retorno explícito
+            print(f"Comparando {pos} con recientes: {self.recent_positions} - {'Visitada' if result else 'No visitada'}")
+            return result  # AJUSTE: se añadió un retorno explícito
 
         # Función para añadir pasos posibles
         def add_possible_step(neigh, pos, last_pos):
-            if neigh.pos != last_pos and neigh.pos not in self.recent_positions:
+            if neigh.pos != last_pos: 
                 if pos[0] < neigh.pos[0] and neigh.direction != 3:
-                    possible_steps.append(neigh.pos)
+                    visited_steps.append(neigh.pos) if visit(neigh.pos) else possible_steps.append(neigh.pos)
                 if pos[0] > neigh.pos[0] and neigh.direction != 1:
-                    possible_steps.append(neigh.pos)
+                    visited_steps.append(neigh.pos) if visit(neigh.pos) else possible_steps.append(neigh.pos)
                 if pos[1] < neigh.pos[1] and neigh.direction != 2:
-                    possible_steps.append(neigh.pos)
+                    visited_steps.append(neigh.pos) if visit(neigh.pos) else possible_steps.append(neigh.pos)
                 if pos[1] > neigh.pos[1] and neigh.direction != 0:
-                    possible_steps.append(neigh.pos)
+                    visited_steps.append(neigh.pos) if visit(neigh.pos) else possible_steps.append(neigh.pos)
 
         # Evaluar vecinos para determinar posibles pasos
         for neigh in neighbor_cell_contents:
@@ -111,22 +119,31 @@ class Coche(Agent):
                 continue  # No avanzar si el semáforo está en rojo
 
             if calle and not coche:
-                add_possible_step(calle, self.pos, self.last_pos)
+                add_possible_step(calle, self.pos, self.last_pos)  # AJUSTE: Llamada a add_possible_step con las direcciones correctas
 
+        print(f"Posiciones no visitadas: {possible_steps}")
+        print(f"Posiciones visitadas: {visited_steps}")
         # Calcular distancias a posibles pasos
         if new_pos is None:
-            for paso in possible_steps:
-                if paso:
+            if possible_steps:
+                for paso in possible_steps:
                     distancia = self.euc(paso, self.destino.pos)
                     distancias.append(distancia)
                     # Depuración: Mostrar posibles pasos y distancias
                     print(f"Coche {self.unique_id} - Posible paso: {paso}, Distancia: {distancia:.2f}")
-            if distancias:
                 new_pos = possible_steps[distancias.index(min(distancias))]
+            elif visited_steps:
+                distancias = []
+                for paso in visited_steps:
+                    distancia = self.euc(paso, self.destino.pos)
+                    distancias.append(distancia)
+                    # Depuración: Mostrar posibles pasos y distancias
+                    print(f"Coche {self.unique_id} - Posible paso ya tomado: {paso}, Distancia: {distancia:.2f}")
+                new_pos = visited_steps[distancias.index(min(distancias))]
             else:
-                print(f"Coche {self.unique_id} no tiene pasos válidos desde {current_pos}.")
+                print(f"Coche {self.unique_id} - No hay pasos posibles.")
                 return
-            
+
         # Verificar si la nueva posición ya está ocupada o reservada por otro coche
         if new_pos in self.model.reservas and self.model.reservas[new_pos] != self.unique_id:
             print(f"Coche {self.unique_id} - Posición {new_pos} reservada por otro coche.")
@@ -142,5 +159,3 @@ class Coche(Agent):
 
         # Actualizar historial de posiciones recientes
         self.recent_positions.append(current_pos)
-        if len(self.recent_positions) > 3:  # Mantener solo las últimas 3 posiciones
-            self.recent_positions.pop(0)

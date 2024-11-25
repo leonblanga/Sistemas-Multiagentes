@@ -43,7 +43,8 @@ class TrafficStats(TextElement):
             f"Coches creados: {model.coches_creados} <br>"
             f"Coches al destino: {model.coches_destino} <br>"
             f"Promedio de pasos al destino: {model._calcular_promedio_pasos():.2f} <br>"
-            f"Accidentes: {model.total_accidentes}"
+            f"Accidentes: {model.total_accidentes} <br>"
+            f"Coches en el grid: {model._contar_coches()}"
         )
 
 
@@ -85,6 +86,8 @@ def agent_portrayal(agent):
         portrayal["Layer"] = 4
         portrayal["r"] = 1
         portrayal["Shape"] = "circle" 
+        portrayal["ID"] = agent.unique_id
+        portrayal["Des"] = f"Destino: {agent.destino.pos}"
     
         
     return portrayal
