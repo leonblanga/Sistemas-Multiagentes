@@ -63,8 +63,6 @@ class Coche(Agent):
         distancias = []
         new_pos = None
 
-        print(f"Coche {self.unique_id} - Posiciones recientes: {self.recent_positions}")
-
         # Si el coche llega al destino se elimina
         for obj in current_cell_contents:
             if isinstance(obj, Destino):
@@ -75,9 +73,8 @@ class Coche(Agent):
                 return
             
         def visit(pos):
-            result = pos in self.recent_positions  # AJUSTE: se añadió un retorno explícito
-            print(f"Comparando {pos} con recientes: {self.recent_positions} - {'Visitada' if result else 'No visitada'}")
-            return result  # AJUSTE: se añadió un retorno explícito
+            result = pos in self.recent_positions 
+            return result 
 
         # Función para añadir pasos posibles
         def add_possible_step(neigh, pos, last_pos):
@@ -121,8 +118,6 @@ class Coche(Agent):
             if calle and not coche:
                 add_possible_step(calle, self.pos, self.last_pos)  # AJUSTE: Llamada a add_possible_step con las direcciones correctas
 
-        print(f"Posiciones no visitadas: {possible_steps}")
-        print(f"Posiciones visitadas: {visited_steps}")
         # Calcular distancias a posibles pasos
         if new_pos is None:
             if possible_steps:
@@ -130,7 +125,6 @@ class Coche(Agent):
                     distancia = self.euc(paso, self.destino.pos)
                     distancias.append(distancia)
                     # Depuración: Mostrar posibles pasos y distancias
-                    print(f"Coche {self.unique_id} - Posible paso: {paso}, Distancia: {distancia:.2f}")
                 new_pos = possible_steps[distancias.index(min(distancias))]
             elif visited_steps:
                 distancias = []
@@ -138,19 +132,15 @@ class Coche(Agent):
                     distancia = self.euc(paso, self.destino.pos)
                     distancias.append(distancia)
                     # Depuración: Mostrar posibles pasos y distancias
-                    print(f"Coche {self.unique_id} - Posible paso ya tomado: {paso}, Distancia: {distancia:.2f}")
                 new_pos = visited_steps[distancias.index(min(distancias))]
             else:
-                print(f"Coche {self.unique_id} - No hay pasos posibles.")
                 return
 
         # Verificar si la nueva posición ya está ocupada o reservada por otro coche
         if new_pos in self.model.reservas and self.model.reservas[new_pos] != self.unique_id:
-            print(f"Coche {self.unique_id} - Posición {new_pos} reservada por otro coche.")
             return
         
         # Mover el coche a la nueva posición
-        print(f"Coche {self.unique_id} se mueve de {current_pos} a {new_pos}.")
         self.model.reservas[new_pos] = self.unique_id  # Reservar la nueva posición
         if current_pos in self.model.reservas:
             del self.model.reservas[current_pos]  # Liberar la reserva actual

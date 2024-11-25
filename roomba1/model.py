@@ -91,11 +91,11 @@ class RandomModel(Model):
             (self.height - 1, 0),  # Esquina inferior izquierda
             (self.height - 1, self.width - 1)  # Esquina inferior derecha
         ]
-        #position = self.random.choice(corners)  # Seleccionar una esquina aleatoria
-        position = (0, self.width - 1)
+        position = self.random.choice(corners)  # Seleccionar una esquina aleatoria
+        #position = (0, self.width - 1)
 
         #Se le asigna un destino aleatorio
-        destino_coche = self.destinos[4]
+        destino_coche = self.random.choice(self.destinos)
         coche = Coche(f"Coche-{self.next_id}", self, destino_coche)
         self.next_id += 1
         self.grid.place_agent(coche, position)
@@ -125,7 +125,7 @@ class RandomModel(Model):
     def step(self):
         """Avanza la simulación un paso."""
         self.step_counter += 1
-        if self.step_counter == 1:
+        if self.step_counter % 2 == 0:
             self._add_random_coche()
         
         # Registrar pasos totales al destino
