@@ -3,107 +3,107 @@
 # Octavio Navarro. 2024
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS, cross_origin
-from randomAgents.model import RandomModel
-from randomAgents.agent import RandomAgent, ObstacleAgent
+from flask_cors import CORS
+from trafficBase.model import RandomModel
+from trafficBase.agent import Edificio, Semaforo, Calle, Destino, Coche
 
-# Size of the board:
-number_agents = 10
-width = 28
-height = 28
+# Variables globales para el modelo
 randomModel = None
 currentStep = 0
 
-# This application will be used to interact with WebGL
-app = Flask("Traffic example")
-cors = CORS(app, origins=['http://localhost'])
+# Configuración del servidor Flask
+app = Flask("Traffic Simulation API")
+CORS(app)
 
-# This route will be used to send the parameters of the simulation to the server.
-# The servers expects a POST request with the parameters in a.json.
 @app.route('/init', methods=['POST'])
-@cross_origin()
-def initModel():
-    global currentStep, randomModel, number_agents, width, height
+def init_model():
+    """
+    Inicializa el modelo con parámetros recibidos en la solicitud.
+    """
+    global randomModel, currentStep
 
-    if request.method == 'POST':
-        try:
+    data = request.json  # Obtener datos del cliente
+    mapa = data.get('mapa', [])  # Mapa inicial
 
-            number_agents = int(request.json.get('NAgents'))
-            width = int(request.json.get('width'))
-            height = int(request.json.get('height'))
-            currentStep = 0
+    # Calcular dinámicamente las dimensiones del mapa
+    height = len(mapa)
+    width = len(mapa[0]) if height > 0 else 0
 
-            print(request.json)
-            print(f"Model parameters:{number_agents, width, height}")
+    # Validar que todas las filas del mapa tengan el mismo ancho
+    if not all(len(row) == width for row in mapa):
+        return jsonify({"error": "El mapa debe ser rectangular."}), 400
 
-            # Create the model using the parameters sent by the application
-            randomModel = RandomModel(number_agents, width, height)
+    # Crear modelo con las dimensiones dinámicas
+    randomModel = RandomModel(width, height, mapa)
+    currentStep = 0
 
-            # Return a message to saying that the model was created successfully
-            return jsonify({"message":"Parameters recieved, model initiated."})
+    return jsonify({"message": "Modelo inicializado correctamente.", "width": width, "height": height})
 
-        except Exception as e:
-            print(e)
-            return jsonify({"message":"Erorr initializing the model"}), 500
-
-# This route will be used to get the positions of the agents
-@app.route('/getAgents', methods=['GET'])
-@cross_origin()
-def getAgents():
+@app.route('/getStaticAgents', methods=['GET'])
+def get_static_agents():
     global randomModel
 
-    if request.method == 'GET':
-        # Get the positions of the agents and return them to WebGL in JSON.json.t.
-        # Note that the positions are sent as a list of dictionaries, where each dictionary has the id and position of an agent.
-        # The y coordinate is set to 1, since the agents are in a 3D world. The z coordinate corresponds to the row (y coordinate) of the grid in mesa.
-        try:
-            agentPositions = [
-                {"id": str(a.unique_id), "x": x, "y":1, "z":z}
-                for a, (x, z) in randomModel.grid.coord_iter()
-                if isinstance(a, RandomAgent)
-            ]
+    if randomModel is None:
+        return jsonify({"error": "El modelo no ha sido inicializado."}), 400
 
-            return jsonify({'positions':agentPositions})
-        except Exception as e:
-            print(e)
-            return jsonify({"message":"Error with the agent positions"}), 500
+    static_agents = []
+    for cell in randomModel.grid.coord_iter():
+        agents_in_cell, pos = cell  
+        x, y = pos  
+        for agent in agents_in_cell:
+            if isinstance(agent, (Edificio, Calle, Destino)):
+                agent_data = {
+                    "id": agent.unique_id,
+                    "type": type(agent).__name__,
+                    "pos": [x, y]
+                }
+                if isinstance(agent, Calle):
+                    agent_data["direction"] = agent.direction 
+                static_agents.append(agent_data)
 
-# This route will be used to get the positions of the obstacles
-@app.route('/getObstacles', methods=['GET'])
-@cross_origin()
-def getObstacles():
+    return jsonify({"staticAgents": static_agents})
+
+@app.route('/getDynamicAgents', methods=['GET'])
+def get_dynamic_agents():
     global randomModel
 
-    if request.method == 'GET':
-        try:
-        # Get the positions of the obstacles and return them to WebGL in JSON.json.t.
-        # Same as before, the positions are sent as a list of dictionaries, where each dictionary has the id and position of an obstacle.
-            carPositions = [
-                {"id": str(a.unique_id), "x": x, "y":1, "z":z}
-                for a, (x, z) in randomModel.grid.coord_iter() if isinstance(a, ObstacleAgent)
-            ]
+    if randomModel is None:
+        return jsonify({"error": "El modelo no ha sido inicializado."}), 400
 
-            return jsonify({'positions':carPositions})
-        except Exception as e:
-            print(e)
-            return jsonify({"message":"Error with obstacle positions"}), 500
+    dynamic_agents = []
+    for agent in randomModel.schedule.agents:
+        if isinstance(agent, (Coche, Semaforo)):
+            agent_data = {
+                "id": agent.unique_id,
+                "type": type(agent).__name__,
+                "pos": agent.pos
+            }
+            if isinstance(agent, Semaforo):
+                agent_data["state"] = agent.green  # Estado del semáforo
+            if isinstance(agent, Coche):
+                agent_data["destination"] = agent.destino.unique_id if agent.destino else None
+                agent_data["recent_positions"] = agent.recent_positions  # Historial de posiciones recientes
+            dynamic_agents.append(agent_data)
 
-# This route will be used to update the model
+    return jsonify({"dynamicAgents": dynamic_agents})
+
+
 @app.route('/update', methods=['GET'])
-@cross_origin()
-def updateModel():
-    global currentStep, randomModel
-    if request.method == 'GET':
-        try:
-        # Update the model and return a message to WebGL saying that the model was updated successfully
-            randomModel.step()
-            currentStep += 1
-            return jsonify({'message':f'Model updated to step {currentStep}.', 'currentStep':currentStep})
-        except Exception as e:
-            print(e)
-            return jsonify({"message":"Error during step."}), 500
+def update_model():
+    """
+    Avanza un paso en la simulación y devuelve el estado actualizado.
+    """
+    global randomModel, currentStep
 
+    if randomModel is None:
+        return jsonify({"error": "El modelo no ha sido inicializado."}), 400
 
-if __name__=='__main__':
-    # Run the flask server in port 8585
+    # Avanzar un paso en la simulación
+    randomModel.step()
+    currentStep += 1
+
+    return jsonify({"message": f"Simulación avanzada al paso {currentStep}.", "currentStep": currentStep})
+
+# Iniciar servidor
+if __name__ == '__main__':
     app.run(host="localhost", port=8585, debug=True)

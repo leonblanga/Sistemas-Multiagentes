@@ -46,9 +46,9 @@ class Object3D {
 // Define the agent server URI
 const agent_server_uri = "http://localhost:8585/";
 
-// Initialize arrays to store agents and obstacles
+// Initialize arrays to store dynamicAgents and staticAgents
 const agents = [];
-const obstacles = [];
+const staticAgents = [];
 
 // Initialize WebGL-related variables
 let gl, programInfo, agentArrays, obstacleArrays, agentsBufferInfo, obstaclesBufferInfo, agentsVao, obstaclesVao;
@@ -60,11 +60,7 @@ let cameraPosition = {x:0, y:9, z:9};
 let frameCount = 0;
 
 // Define the data object
-const data = {
-  NAgents: 5,
-  width: 10,
-  height: 10
-};
+const data = {};
 
 // Main function to initialize and run the application
 async function main() {
@@ -73,6 +69,8 @@ async function main() {
 
   // Create the program information using the vertex and fragment shaders
   programInfo = twgl.createProgramInfo(gl, [vsGLSL, fsGLSL]);
+
+  await initAgentsModel();
 
   // Generate the agent and obstacle data
   agentArrays = generateData(1);
@@ -93,8 +91,8 @@ async function main() {
   await initAgentsModel();
 
   // Get the agents and obstacles
-  await getAgents();
-  await getObstacles();
+  await getDynamicAgents();
+  await getStaticAgents();
 
   // Draw the scene
   await drawScene(gl, programInfo, agentsVao, agentsBufferInfo, obstaclesVao, obstaclesBufferInfo);
@@ -105,79 +103,111 @@ async function main() {
  */
 async function initAgentsModel() {
   try {
-    // Send a POST request to the agent server to initialize the model
-    let response = await fetch(agent_server_uri + "init", {
-      method: 'POST', 
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify(data)
-    })
+    const initialMap = [
+      ">>>>>>>>>>>>>>>d>>>>>>>>vv",
+      ">>>>>>>>>>>>>>>d>>>>>>>>vv",
+      "^^##D###vv######AA#####Dvv",
+      "^^######vv######^^######vv",
+      "^^######vvD#####^^######vv",
+      "^^######vv######^^######vv",
+      "^^######vv######^^######vv",
+      "^^###D##BB######^^####D#vv",
+      "^^i<<<<<<<i<<<<<<<i<<<<<vv",
+      "^^i<<<<<<<i<<<<<<<i<<<<<vv",
+      "AA######vv######AA######vv",
+      "^^######vv######^^######vv",
+      "^^######vv######^^######vv",
+      "^^D#####vv#####D^^######vv",
+      "^^######vv######^^######vv",
+      "^^######BB######^^######BB",
+      "^^>>>>>d>>>>>>>>>>>>>>>dvv",
+      "^^>>>>>d>>>>>>>>>>>>>>>dvv",
+      "^^######vv####D#########vv",
+      "^^######vv##############vv",
+      "^^#####Dvv#############Dvv",
+      "^^######vv##############vv",
+      "^^######vv##############vv",
+      "^^######BB#########D####vv",
+      "^^<<<<<<<<i<<<<<<<<<<<<<<<",
+      "^^<<<<<<<<i<<<<<<<<<<<<<<<",
+  ];
+      let response = await fetch(agent_server_uri + "init", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mapa: initialMap }) // Enviamos mapa
+      });
 
-    // Check if the response was successful
-    if(response.ok){
-      // Parse the response as JSON and log the message
-      let result = await response.json()
-      console.log(result.message)
-    }
-      
+      if (response.ok) {
+          let result = await response.json();
+
+          // Actualiza dinámicamente las dimensiones del mapa
+          data.width = result.width;
+          data.height = result.height;
+
+          console.log("Modelo inicializado dinámicamente:", result.message);
+      } else {
+          console.error("Error al inicializar el modelo:", response.status);
+      }
   } catch (error) {
-    // Log any errors that occur during the request
-    console.log(error)    
+      console.error("Error de conexión:", error);
   }
 }
 
 /*
- * Retrieves the current positions of all agents from the agent server.
+ * Retrieves the current positions of all dynamic agents from the agent server.
  */
-async function getAgents() {
+async function getDynamicAgents() {
   try {
-    // Send a GET request to the agent server to retrieve the agent positions
-    let response = await fetch(agent_server_uri + "getAgents") 
+    // Send a GET request to the agent server to retrieve dynamic agents
+    let response = await fetch(agent_server_uri + "getDynamicAgents");
 
     // Check if the response was successful
-    if(response.ok){
+    if (response.ok) {
       // Parse the response as JSON
-      let result = await response.json()
+      let result = await response.json();
 
-      // Log the agent positions
-      console.log(result.positions)
+      // Log the dynamic agents count
+      console.log(`Number of dynamic agents: ${result.dynamicAgents.length}`);
 
       // Check if the agents array is empty
-      if(agents.length == 0){
-        // Create new agents and add them to the agents array
-        for (const agent of result.positions) {
-          const newAgent = new Object3D(agent.id, [agent.x, agent.y, agent.z])
-          agents.push(newAgent)
+      if (agents.length === 0) {
+        // Create new dynamic agents and add them to the agents array
+        for (const agent of result.dynamicAgents) {
+          const newAgent = new Object3D(agent.id, [agent.pos[0], 0, agent.pos[1]]);
+          agents.push(newAgent);
         }
         // Log the agents array
-        console.log("Agents:", agents)
-
+        console.log("Dynamic Agents:", agents);
       } else {
-        // Update the positions of existing agents
-        for (const agent of result.positions) {
-          const current_agent = agents.find((object3d) => object3d.id == agent.id)
+        // Update the positions of existing dynamic agents
+        for (const agent of result.dynamicAgents) {
+          const currentAgent = agents.find((object3d) => object3d.id === agent.id);
 
           // Check if the agent exists in the agents array
-          if(current_agent != undefined){
+          if (currentAgent !== undefined) {
             // Update the agent's position
-            current_agent.position = [agent.x, agent.y, agent.z]
+            currentAgent.position = [agent.pos[0], 0, agent.pos[1]];
           }
         }
       }
+    } else {
+      // Log an error if the response was not successful
+      console.error("Failed to fetch dynamic agents:", response.status);
     }
-
   } catch (error) {
     // Log any errors that occur during the request
-    console.log(error) 
+    console.error("An error occurred while fetching dynamic agents:", error);
   }
 }
+
 
 /*
  * Retrieves the current positions of all obstacles from the agent server.
  */
-async function getObstacles() {
+async function getStaticAgents() {
   try {
     // Send a GET request to the agent server to retrieve the obstacle positions
-    let response = await fetch(agent_server_uri + "getObstacles") 
+    let response = await fetch(agent_server_uri + "getStaticAgents") 
 
     // Check if the response was successful
     if(response.ok){
@@ -185,12 +215,12 @@ async function getObstacles() {
       let result = await response.json()
 
       // Create new obstacles and add them to the obstacles array
-      for (const obstacle of result.positions) {
-        const newObstacle = new Object3D(obstacle.id, [obstacle.x, obstacle.y, obstacle.z])
-        obstacles.push(newObstacle)
+      for (const agent of result.staticAgents) {
+        const staticAgent = new Object3D(agent.id, [agent.pos[0], 0, agent.pos[1]]);
+        staticAgents.push(staticAgent); // Añade a la lista de obstáculos
       }
       // Log the obstacles array
-      console.log("Obstacles:", obstacles)
+      console.log("Agentes estáticos cargados:", staticAgents);
     }
 
   } catch (error) {
@@ -210,7 +240,7 @@ async function update() {
     // Check if the response was successful
     if(response.ok){
       // Retrieve the updated agent positions
-      await getAgents()
+      await getDynamicAgents()
       // Log a message indicating that the agents have been updated
       console.log("Updated agents")
     }
@@ -254,10 +284,10 @@ async function drawScene(gl, programInfo, agentsVao, agentsBufferInfo, obstacles
     // Set the distance for rendering
     const distance = 1
 
-    // Draw the agents
-    drawAgents(distance, agentsVao, agentsBufferInfo, viewProjectionMatrix)    
-    // Draw the obstacles
-    drawObstacles(distance, obstaclesVao, obstaclesBufferInfo, viewProjectionMatrix)
+    // Draw the dynamic agents
+    drawDynamicAgents(distance, agentsVao, agentsBufferInfo, viewProjectionMatrix)    
+    // Draw the static agents
+    drawStaticAgents(distance, obstaclesVao, obstaclesBufferInfo, viewProjectionMatrix)
 
     // Increment the frame count
     frameCount++
@@ -273,82 +303,79 @@ async function drawScene(gl, programInfo, agentsVao, agentsBufferInfo, obstacles
 }
 
 /*
- * Draws the agents.
+ * Draws dynamic agents.
  * 
  * @param {Number} distance - The distance for rendering.
- * @param {WebGLVertexArrayObject} agentsVao - The vertex array object for agents.
- * @param {Object} agentsBufferInfo - The buffer information for agents.
+ * @param {WebGLVertexArrayObject} agentsVao - The vertex array object for dynamic agents.
+ * @param {Object} agentsBufferInfo - The buffer information for dynamic agents.
  * @param {Float32Array} viewProjectionMatrix - The view-projection matrix.
  */
-function drawAgents(distance, agentsVao, agentsBufferInfo, viewProjectionMatrix){
-    // Bind the vertex array object for agents
-    gl.bindVertexArray(agentsVao);
+function drawDynamicAgents(distance, agentsVao, agentsBufferInfo, viewProjectionMatrix) {
+  // Bind the vertex array object for dynamic agents
+  gl.bindVertexArray(agentsVao);
 
-    // Iterate over the agents
-    for(const agent of agents){
-      // Calculate the agent's position
-      let x = agent.position[0] * distance, y = agent.position[1] * distance, z = agent.position[2]
+  // Iterate over the dynamic agents
+  for (const agent of agents) {
+      // Calculate the dynamic agent's transformation matrix
+      const translation = twgl.v3.create(
+          agent.position[0] * distance,
+          agent.position[1] * distance,
+          agent.position[2]
+      );
+      const scale = twgl.v3.create(...agent.scale);
 
-      // Create the agent's transformation matrix
-      const cube_trans = twgl.v3.create(...agent.position);
-      const cube_scale = twgl.v3.create(...agent.scale);
-
-      // Calculate the agent's matrix
-      agent.matrix = twgl.m4.translate(viewProjectionMatrix, cube_trans);
+      agent.matrix = twgl.m4.translate(viewProjectionMatrix, translation);
       agent.matrix = twgl.m4.rotateX(agent.matrix, agent.rotation[0]);
       agent.matrix = twgl.m4.rotateY(agent.matrix, agent.rotation[1]);
       agent.matrix = twgl.m4.rotateZ(agent.matrix, agent.rotation[2]);
-      agent.matrix = twgl.m4.scale(agent.matrix, cube_scale);
+      agent.matrix = twgl.m4.scale(agent.matrix, scale);
 
-      // Set the uniforms for the agent
-      let uniforms = {
+      // Set the uniforms and draw the dynamic agent
+      const uniforms = {
           u_matrix: agent.matrix,
-      }
-
-      // Set the uniforms and draw the agent
+      };
       twgl.setUniforms(programInfo, uniforms);
       twgl.drawBufferInfo(gl, agentsBufferInfo);
-      
-    }
+  }
 }
 
-      
 /*
- * Draws the obstacles.
- * 
- * @param {Number} distance - The distance for rendering.
- * @param {WebGLVertexArrayObject} obstaclesVao - The vertex array object for obstacles.
- * @param {Object} obstaclesBufferInfo - The buffer information for obstacles.
- * @param {Float32Array} viewProjectionMatrix - The view-projection matrix.
- */
-function drawObstacles(distance, obstaclesVao, obstaclesBufferInfo, viewProjectionMatrix){
-    // Bind the vertex array object for obstacles
-    gl.bindVertexArray(obstaclesVao);
+* Draws static agents.
+* 
+* @param {Number} distance - The distance for rendering.
+* @param {WebGLVertexArrayObject} obstaclesVao - The vertex array object for static agents.
+* @param {Object} obstaclesBufferInfo - The buffer information for static agents.
+* @param {Float32Array} viewProjectionMatrix - The view-projection matrix.
+*/
+function drawStaticAgents(distance, obstaclesVao, obstaclesBufferInfo, viewProjectionMatrix) {
+  // Bind the vertex array object for static agents
+  gl.bindVertexArray(obstaclesVao);
 
-    // Iterate over the obstacles
-    for(const obstacle of obstacles){
-      // Create the obstacle's transformation matrix
-      const cube_trans = twgl.v3.create(...obstacle.position);
-      const cube_scale = twgl.v3.create(...obstacle.scale);
+  // Iterate over the static agents
+  for (const obstacle of staticAgents) {
+      // Calculate the static agent's transformation matrix
+      const translation = twgl.v3.create(
+          obstacle.position[0] * distance,
+          obstacle.position[1] * distance,
+          obstacle.position[2]
+      );
+      const scale = twgl.v3.create(...obstacle.scale);
 
-      // Calculate the obstacle's matrix
-      obstacle.matrix = twgl.m4.translate(viewProjectionMatrix, cube_trans);
+      obstacle.matrix = twgl.m4.translate(viewProjectionMatrix, translation);
       obstacle.matrix = twgl.m4.rotateX(obstacle.matrix, obstacle.rotation[0]);
       obstacle.matrix = twgl.m4.rotateY(obstacle.matrix, obstacle.rotation[1]);
       obstacle.matrix = twgl.m4.rotateZ(obstacle.matrix, obstacle.rotation[2]);
-      obstacle.matrix = twgl.m4.scale(obstacle.matrix, cube_scale);
+      obstacle.matrix = twgl.m4.scale(obstacle.matrix, scale);
 
-      // Set the uniforms for the obstacle
-      let uniforms = {
+      // Set the uniforms and draw the static agent
+      const uniforms = {
           u_matrix: obstacle.matrix,
-      }
-
-      // Set the uniforms and draw the obstacle
+      };
       twgl.setUniforms(programInfo, uniforms);
       twgl.drawBufferInfo(gl, obstaclesBufferInfo);
-      
-    }
+  }
 }
+
 
 /*
  * Sets up the world view by creating the view-projection matrix.
