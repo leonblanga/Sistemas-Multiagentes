@@ -140,3 +140,14 @@ class RandomModel(Model):
         # Recolectar datos
         self._contar_accidentes()
         self.datacollector.collect(self)
+
+# Método para obtener las estadísticas actuales
+    def get_stats(self):
+        """Devuelve un diccionario con las estadísticas actuales del modelo."""
+        return {
+            "coches_creados": self.coches_creados,
+            "coches_al_destino": self.coches_destino,
+            "promedio_pasos_al_destino": self._calcular_promedio_pasos(),
+            "accidentes": self.total_accidentes,
+            "coches_en_el_grid": self._contar_coches()
+        }

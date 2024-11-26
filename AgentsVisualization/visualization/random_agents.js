@@ -62,7 +62,7 @@ const lightingSettings = {
   ambientLight: [0.2, 0.2, 0.2, 1.0],
   diffuseLight: [0.7, 0.7, 0.7, 1.0],
   specularLight: [1.0, 1.0, 1.0, 1.0],
-  lightPosition: { x: 10, y: 20, z: 10 },
+  lightPosition: { x: 7, y: 10, z: 7 },
 };
 
 // Color array for cars
@@ -91,7 +91,7 @@ async function main() {
   programInfo = twgl.createProgramInfo(gl, [vs_phong, fs_phong]);
 
   // Load and parse car model
-  const carObjContent = await loadOBJFile("./objects/rueda.obj");
+  const carObjContent = await loadOBJFile("./objects/coche.obj");
   if (carObjContent) {
     const carVertexData = parseOBJ(carObjContent);
     if (carVertexData) {
@@ -239,7 +239,7 @@ function parseOBJ(objContent) {
             positionData.push(...positions[vIdx]);
           } else {
             console.error("Missing position for vertex", vIdx);
-            positionData.push(0, 0, 0); // Default fallback
+            positionData.push(0, 0, 0, 0); // Default fallback
           }
 
           // Add texture coordinates (use a default if missing)
@@ -480,10 +480,9 @@ async function fetchDynamicAgents() {
         }
         newCarIds.push(carId);
       } else if (agentType === "Semaforo") {
-        // Update traffic lights
         trafficLights.push({
           x: x,
-          y: y,
+          y: y + 1, // Elevar la posición en 'y' una unidad
           z: z,
           state: agent.state, // Use agent.green
         });
@@ -498,6 +497,18 @@ async function fetchDynamicAgents() {
     });
   } catch (error) {
     console.error("Error fetching dynamic agents:", error);
+  }
+}
+
+async function fetchStats() {
+  try {
+    const response = await fetch(`${agent_server_uri}getStats`);
+    if (!response.ok) throw new Error("Failed to fetch stats.");
+    const stats = await response.json();
+    return stats;
+  } catch (error) {
+    console.error("Error fetching stats:", error);
+    return null;
   }
 }
 
@@ -541,9 +552,29 @@ async function drawScene() {
     frameCount = 0;
     framesSinceUpdate = 0; // Reset frames since last update
     await update();
+
+    // Obtener y mostrar las estadísticas
+    const stats = await fetchStats();
+    if (stats) {
+      updateStatsDisplay(stats);
+    }
   }
 
   requestAnimationFrame(drawScene);
+}
+
+// Función para actualizar la visualización de estadísticas
+function updateStatsDisplay(stats) {
+  const statsDiv = document.getElementById("stats");
+  if (statsDiv) {
+    statsDiv.innerHTML = `
+      <p>Coches creados: ${stats.coches_creados}</p>
+      <p>Coches al destino: ${stats.coches_al_destino}</p>
+      <p>Promedio de pasos al destino: ${stats.promedio_pasos_al_destino.toFixed(2)}</p>
+      <p>Accidentes: ${stats.accidentes}</p>
+      <p>Coches en el grid: ${stats.coches_en_el_grid}</p>
+    `;
+  }
 }
 
 // Draw all entities
@@ -634,9 +665,9 @@ function drawObstacles(viewProjectionMatrix) {
       u_worldViewProjection: worldViewProjectionMatrix,
       u_world: worldMatrix,
       u_worldInverseTranspose: twgl.m4.transpose(twgl.m4.inverse(worldMatrix)),
-      u_ambientColor: [0.7, 0.7, 0.7, 1], // Light gray ambient color
-      u_diffuseColor: [0.8, 0.8, 0.8, 1], // Light gray diffuse color
-      u_specularColor: [0.9, 0.9, 0.9, 1], // Lighter gray specular color
+      u_ambientColor: [0.9, 0.8, 0.6, 1], // Light gray ambient color
+      u_diffuseColor: [0.9, 0.8, 0.6, 1], // Light gray diffuse color
+      u_specularColor: [0.9, 0.8, 0.6, 1], // Lighter gray specular color
       u_shininess: 32.0, // Shininess factor
     });
 
@@ -656,7 +687,7 @@ function drawDestinations(viewProjectionMatrix) {
       destination.y,
       destination.z,
     ]);
-    worldMatrix = twgl.m4.scale(worldMatrix, [0.5, 0.5, 0.5]); // Scale as needed
+    worldMatrix = twgl.m4.scale(worldMatrix, [0.2, 0.2, 0.2]); // Scale as needed
 
     // Calculate the world-view-projection matrix
     const worldViewProjectionMatrix = twgl.m4.multiply(
@@ -745,9 +776,9 @@ function drawRoads(viewProjectionMatrix) {
       u_worldViewProjection: worldViewProjectionMatrix,
       u_world: worldMatrix,
       u_worldInverseTranspose: twgl.m4.transpose(twgl.m4.inverse(worldMatrix)),
-      u_ambientColor: [0.3, 0.2, 0.1, 1], // Brown ambient color
-      u_diffuseColor: [0.6, 0.4, 0.2, 1], // Brown diffuse color
-      u_specularColor: [0.2, 0.2, 0.2, 1], // Dark gray specular color
+      u_ambientColor: [0.3, 0.3, 0.3, 1], // Brown ambient color
+      u_diffuseColor: [0.3, 0.3, 0.3, 1], // Brown diffuse color
+      u_specularColor: [0.3, 0.3, 0.3, 1], // Dark gray specular color
       u_shininess: 8.0, // Shininess factor
     });
 

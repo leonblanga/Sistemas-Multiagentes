@@ -104,6 +104,16 @@ def update_model():
 
     return jsonify({"message": f"Simulación avanzada al paso {currentStep}.", "currentStep": currentStep})
 
+@app.route('/getStats', methods=['GET'])
+def get_stats():
+    global randomModel
+
+    if randomModel is None:
+        return jsonify({"error": "El modelo no ha sido inicializado."}), 400
+
+    stats = randomModel.get_stats()
+    return jsonify(stats)
+
 # Iniciar servidor
 if __name__ == '__main__':
     app.run(host="localhost", port=8585, debug=True)
