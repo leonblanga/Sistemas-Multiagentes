@@ -49,8 +49,8 @@ const mapa = [
 ];
 
 // WebGL variables
-let gl, programInfo, carBufferInfo, cubeBufferInfo, obstacleBufferInfo;
-let carVAO, cubeVAO, obstacleVAO;
+let gl, programInfo, carBufferInfo, cubeBufferInfo, obstacleBufferInfo, destinationBufferInfo;
+let carVAO, cubeVAO, obstacleVAO, destinationVAO;
 
 // Camera settings
 let cameraPosition = { x: 10, y: 40, z: 20 };
@@ -64,6 +64,19 @@ const lightingSettings = {
   specularLight: [1.0, 1.0, 1.0, 1.0],
   lightPosition: { x: 10, y: 20, z: 10 },
 };
+
+// Color array for cars
+const carColors = [
+  [1, 0, 0, 1],    // Red
+  [0, 1, 0, 1],    // Green
+  [0, 0, 1, 1],    // Blue
+  [1, 1, 0, 1],    // Yellow
+  [1, 0, 1, 1],    // Magenta
+  [0, 1, 1, 1],    // Cyan
+  [0.5, 0.5, 0.5, 1],  // Gray
+  [1, 0.5, 0, 1],  // Orange
+  [0.5, 0, 0.5, 1],    // Purple
+];
 
 // Main function
 async function main() {
@@ -89,7 +102,7 @@ async function main() {
     }
   }
 
-  // Load and parse obstacle model
+  // Load and parse obstacle model (Edificio)
   const obstacleObjContent = await loadOBJFile("./objects/edificio.obj");
   if (obstacleObjContent) {
     const obstacleVertexData = parseOBJ(obstacleObjContent);
@@ -108,7 +121,26 @@ async function main() {
     }
   }
 
-  // Generate cube data for obstacles, destinations, traffic lights, and roads
+  // Load and parse destination model
+  const destinationObjContent = await loadOBJFile("./objects/destino.obj");
+  if (destinationObjContent) {
+    const destinationVertexData = parseOBJ(destinationObjContent);
+    if (destinationVertexData) {
+      console.log("Parsed Destination Model Data:", destinationVertexData);
+      validateVertexData(destinationVertexData);
+      destinationBufferInfo = twgl.createBufferInfoFromArrays(
+        gl,
+        destinationVertexData
+      );
+      destinationVAO = twgl.createVAOFromBufferInfo(
+        gl,
+        programInfo,
+        destinationBufferInfo
+      );
+    }
+  }
+
+  // Generate cube data for traffic lights and roads
   const cubeData = generateCubeData(1);
   cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, cubeData);
   cubeVAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
@@ -406,6 +438,9 @@ async function fetchDynamicAgents() {
     const result = await response.json();
     const dynamicAgents = result.dynamicAgents;
 
+    // Clear trafficLights array
+    trafficLights.length = 0;
+
     // Update 'cars' and 'trafficLights'
     const newCarIds = [];
     dynamicAgents.forEach((agent) => {
@@ -428,7 +463,8 @@ async function fetchDynamicAgents() {
           cars[carId].z = z;
           cars[carId].interpolation = 0; // Reset interpolation factor
         } else {
-          // New car: initialize positions
+          // New car: initialize positions and assign a random color
+          const color = carColors[Math.floor(Math.random() * carColors.length)];
           cars[carId] = {
             id: carId,
             x: x,
@@ -439,6 +475,7 @@ async function fetchDynamicAgents() {
             prevZ: z,
             lastAngle: 0, // Initialize last known angle
             interpolation: 0, // Initialize interpolation factor
+            color: color, // Assign random color
           };
         }
         newCarIds.push(carId);
@@ -448,7 +485,7 @@ async function fetchDynamicAgents() {
           x: x,
           y: y,
           z: z,
-          state: agent.state,
+          state: agent.state, // Use agent.green
         });
       }
     });
@@ -562,8 +599,8 @@ function drawCars(viewProjectionMatrix) {
       u_worldViewProjection: worldViewProjectionMatrix,
       u_world: worldMatrix,
       u_worldInverseTranspose: twgl.m4.transpose(twgl.m4.inverse(worldMatrix)),
-      u_ambientColor: [1, 0.5, 0, 1], // Orange ambient color
-      u_diffuseColor: [1, 0.5, 0, 1], // Orange diffuse color
+      u_ambientColor: car.color, // Use car's color
+      u_diffuseColor: car.color, // Use car's color
       u_specularColor: [1, 1, 1, 1], // White specular color
       u_shininess: 32.0, // Shininess factor
     });
@@ -573,7 +610,7 @@ function drawCars(viewProjectionMatrix) {
   });
 }
 
-// Draw obstacles
+// Draw obstacles (Edificios)
 function drawObstacles(viewProjectionMatrix) {
   gl.bindVertexArray(obstacleVAO);
   obstacles.forEach((obstacle) => {
@@ -597,10 +634,10 @@ function drawObstacles(viewProjectionMatrix) {
       u_worldViewProjection: worldViewProjectionMatrix,
       u_world: worldMatrix,
       u_worldInverseTranspose: twgl.m4.transpose(twgl.m4.inverse(worldMatrix)),
-      u_ambientColor: [0.1, 0.1, 0.1, 1], // Low ambient color
-      u_diffuseColor: [0, 0, 0, 1], // Black diffuse color
-      u_specularColor: [0.5, 0.5, 0.5, 1], // Gray specular color
-      u_shininess: 16.0, // Shininess factor
+      u_ambientColor: [0.7, 0.7, 0.7, 1], // Light gray ambient color
+      u_diffuseColor: [0.8, 0.8, 0.8, 1], // Light gray diffuse color
+      u_specularColor: [0.9, 0.9, 0.9, 1], // Lighter gray specular color
+      u_shininess: 32.0, // Shininess factor
     });
 
     // Draw the obstacle
@@ -610,7 +647,7 @@ function drawObstacles(viewProjectionMatrix) {
 
 // Draw destinations
 function drawDestinations(viewProjectionMatrix) {
-  gl.bindVertexArray(cubeVAO);
+  gl.bindVertexArray(destinationVAO);
   destinations.forEach((destination) => {
     // Create a world matrix for the destination
     let worldMatrix = twgl.m4.identity();
@@ -619,7 +656,7 @@ function drawDestinations(viewProjectionMatrix) {
       destination.y,
       destination.z,
     ]);
-    worldMatrix = twgl.m4.scale(worldMatrix, [1.0, 1.0, 1.0]); // Scale as needed
+    worldMatrix = twgl.m4.scale(worldMatrix, [0.5, 0.5, 0.5]); // Scale as needed
 
     // Calculate the world-view-projection matrix
     const worldViewProjectionMatrix = twgl.m4.multiply(
@@ -632,14 +669,14 @@ function drawDestinations(viewProjectionMatrix) {
       u_worldViewProjection: worldViewProjectionMatrix,
       u_world: worldMatrix,
       u_worldInverseTranspose: twgl.m4.transpose(twgl.m4.inverse(worldMatrix)),
-      u_ambientColor: [0.2, 0.2, 0.0, 1], // Dark yellow ambient color
-      u_diffuseColor: [1, 1, 0, 1], // Yellow diffuse color
+      u_ambientColor: [0.0, 0.2, 0.0, 1], // Dark green ambient color
+      u_diffuseColor: [0.0, 0.5, 0.0, 1], // Green diffuse color
       u_specularColor: [0.5, 0.5, 0.5, 1], // Gray specular color
       u_shininess: 16.0, // Shininess factor
     });
 
     // Draw the destination
-    twgl.drawBufferInfo(gl, cubeBufferInfo);
+    twgl.drawBufferInfo(gl, destinationBufferInfo);
   });
 }
 
@@ -708,9 +745,9 @@ function drawRoads(viewProjectionMatrix) {
       u_worldViewProjection: worldViewProjectionMatrix,
       u_world: worldMatrix,
       u_worldInverseTranspose: twgl.m4.transpose(twgl.m4.inverse(worldMatrix)),
-      u_ambientColor: [0.1, 0.1, 0.1, 1], // Low ambient color
-      u_diffuseColor: [0.2, 0.2, 0.2, 1], // Dark gray diffuse color
-      u_specularColor: [0.3, 0.3, 0.3, 1], // Slightly brighter specular color
+      u_ambientColor: [0.3, 0.2, 0.1, 1], // Brown ambient color
+      u_diffuseColor: [0.6, 0.4, 0.2, 1], // Brown diffuse color
+      u_specularColor: [0.2, 0.2, 0.2, 1], // Dark gray specular color
       u_shininess: 8.0, // Shininess factor
     });
 
