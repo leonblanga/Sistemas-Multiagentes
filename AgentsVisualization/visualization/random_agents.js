@@ -572,6 +572,7 @@ function updateStatsDisplay(stats) {
   const statsDiv = document.getElementById("stats");
   if (statsDiv) {
     statsDiv.innerHTML = `
+      <p>Pasos Simulación: ${stats.pasos_simulacion}</p>
       <p>Coches creados: ${stats.coches_creados}</p>
       <p>Coches al destino: ${stats.coches_al_destino}</p>
       <p>Coches en el grid: ${stats.coches_en_el_grid}</p>

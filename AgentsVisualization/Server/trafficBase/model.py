@@ -10,7 +10,6 @@ class RandomModel(Model):
         self.grid = MultiGrid(width, height, torus=False)
         self.schedule = RandomActivation(self)
         self.running = True
-        self.step_counter = 0
         self.width = width
         self.height = height
         self.destinos = []
@@ -18,6 +17,7 @@ class RandomModel(Model):
         self.next_id = 1
 
         # Contadores para métricas
+        self.step_counter = 0
         self.coches_creados = 0
         self.coches_destino = 0
         self.pasos_totales = 0
@@ -26,6 +26,7 @@ class RandomModel(Model):
 
         self.datacollector = DataCollector(
             model_reporters={
+                "Pasos Simulación": lambda m: m.step_counter,
                 "Coches Creados": lambda m: m.coches_creados,
                 "Coches al Destino": lambda m: m.coches_destino,
                 "Accidentes": lambda m: m.total_accidentes,
@@ -90,7 +91,10 @@ class RandomModel(Model):
             (self.height - 1, 0),  # Esquina inferior izquierda
             (self.height - 1, self.width - 1)  # Esquina inferior derecha
         ]
-        position = corners[corner]  # Seleccionar una esquina
+        for obj in corners[corner]:
+            if obj in self.reservas:
+                return # No añadir coche si la esquina está reservada
+            position = corners[corner]
 
         #Se le asigna un destino aleatorio
         destino_coche = self.random.choice(self.destinos)
@@ -128,10 +132,10 @@ class RandomModel(Model):
                 self._add_random_coche(corner)
         
         # Registrar pasos totales al destino
-        for agent in self.schedule.agents:
-            if isinstance(agent, Coche) and agent.pos == agent.destino.pos:
-                self.coches_destino += 1
-                self.pasos_totales += self.step_counter
+        #for agent in self.schedule.agents:
+        #   if isinstance(agent, Coche) and agent.pos == agent.destino.pos:
+        #      self.coches_destino += 1
+        #     self.pasos_totales += self.step_counter
 
         # Avanzar la simulación
         self.schedule.step()
@@ -144,6 +148,7 @@ class RandomModel(Model):
     def get_stats(self):
         """Devuelve un diccionario con las estadísticas actuales del modelo."""
         return {
+            "pasos_simulacion": self.step_counter,
             "coches_creados": self.coches_creados,
             "coches_al_destino": self.coches_destino,
             "accidentes": self.total_accidentes,
