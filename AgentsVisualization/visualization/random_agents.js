@@ -61,6 +61,10 @@ let cameraPosition = { x: 10, y: 40, z: 20 };
 let frameCount = 0;
 let framesSinceUpdate = 0;
 
+// Map dimensions
+let mapWidth = mapa[0].length;
+let mapHeight = mapa.length;
+
 // Lighting Settings
 const lightingSettings = {
   ambientLight: [0.2, 0.2, 0.2, 1.0],
@@ -144,7 +148,7 @@ async function main() {
     }
   }
 
-  // Generate cube data for traffic lights and roads
+  // Generate cube data for traffic lights
   const cubeData = generateCubeData(1);
   cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, cubeData);
   cubeVAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
@@ -152,6 +156,10 @@ async function main() {
   // Initialize model on the server and fetch initial entities
   await initModel();
   await fetchEntities();
+
+  // Declare map variable
+  mapWidth = mapa[0].length;
+  mapHeight = mapa.length;
 
   // Setup the GUI for camera and lighting controls
   setupGUI();
@@ -547,12 +555,13 @@ async function drawScene() {
     u_specularLight: lightingSettings.specularLight,
   });
 
+  drawGround(viewProjectionMatrix);
   drawEntities(viewProjectionMatrix);
 
   frameCount++;
   framesSinceUpdate++; // Increment frames since last update
 
-  if (frameCount % 15 === 0) {
+  if (frameCount % 5 === 0) {
     frameCount = 0;
     framesSinceUpdate = 0; // Reset frames since last update
     await update();
@@ -565,20 +574,6 @@ async function drawScene() {
   }
 
   requestAnimationFrame(drawScene);
-}
-
-// Función para actualizar la visualización de estadísticas
-function updateStatsDisplay(stats) {
-  const statsDiv = document.getElementById("stats");
-  if (statsDiv) {
-    statsDiv.innerHTML = `
-      <p>Pasos Simulación: ${stats.pasos_simulacion}</p>
-      <p>Coches creados: ${stats.coches_creados}</p>
-      <p>Coches al destino: ${stats.coches_al_destino}</p>
-      <p>Coches en el grid: ${stats.coches_en_el_grid}</p>
-      <p>Accidentes: ${stats.accidentes}</p>
-    `;
-  }
 }
 
 // Draw all entities
@@ -595,7 +590,7 @@ function drawCars(viewProjectionMatrix) {
   gl.bindVertexArray(carVAO);
   Object.values(cars).forEach((car) => {
     // Interpolation factor between 0 and 1
-    const t = framesSinceUpdate / 15; // Interpolation factor between 0 and 1
+    const t = framesSinceUpdate / 5; // Interpolation factor between 0 and 1
 
     // Interpolated position
     const x = car.prevX + (car.x - car.prevX) * t;
@@ -645,6 +640,41 @@ function drawCars(viewProjectionMatrix) {
   });
 }
 
+// Draw the ground
+function drawGround(viewProjectionMatrix) {
+  gl.bindVertexArray(cubeVAO);
+
+  // Centramos el suelo según el tamaño del mapa
+  let worldMatrix = twgl.m4.identity();
+  worldMatrix = twgl.m4.translate(worldMatrix, [
+    mapWidth / 2 - 0.5,
+    -0.7,
+    mapHeight / 2 - 0.5,
+  ]);
+
+  // Escalamos el suelo para cubrir todo el mapa
+  worldMatrix = twgl.m4.scale(worldMatrix, [mapWidth, 0.05, mapHeight]);
+
+  const worldViewProjectionMatrix = twgl.m4.multiply(
+    viewProjectionMatrix,
+    worldMatrix
+  );
+
+  twgl.setUniforms(programInfo, {
+    u_worldViewProjection: worldViewProjectionMatrix,
+    u_world: worldMatrix,
+    u_worldInverseTranspose: twgl.m4.transpose(
+      twgl.m4.inverse(worldMatrix)
+    ),
+    u_ambientColor: [0.2, 0.2, 0.2, 1],
+    u_diffuseColor: [0.2, 0.2, 0.2, 1],
+    u_specularColor: [0.1, 0.1, 0.1, 1],
+    u_shininess: 8.0,
+  });
+
+  twgl.drawBufferInfo(gl, cubeBufferInfo);
+}
+
 // Draw obstacles (Edificios)
 function drawObstacles(viewProjectionMatrix) {
   gl.bindVertexArray(obstacleVAO);
@@ -688,10 +718,10 @@ function drawDestinations(viewProjectionMatrix) {
     let worldMatrix = twgl.m4.identity();
     worldMatrix = twgl.m4.translate(worldMatrix, [
       destination.x,
-      destination.y,
+      destination.y - 0.7,
       destination.z,
     ]);
-    worldMatrix = twgl.m4.scale(worldMatrix, [0.2, 0.2, 0.2]); // Scale as needed
+    worldMatrix = twgl.m4.scale(worldMatrix, [0.7, 1.5, 0.7]); // Scale as needed
 
     // Calculate the world-view-projection matrix
     const worldViewProjectionMatrix = twgl.m4.multiply(
@@ -704,10 +734,10 @@ function drawDestinations(viewProjectionMatrix) {
       u_worldViewProjection: worldViewProjectionMatrix,
       u_world: worldMatrix,
       u_worldInverseTranspose: twgl.m4.transpose(twgl.m4.inverse(worldMatrix)),
-      u_ambientColor: [0.0, 0.2, 0.0, 1], // Dark green ambient color
-      u_diffuseColor: [0.0, 0.5, 0.0, 1], // Green diffuse color
-      u_specularColor: [0.5, 0.5, 0.5, 1], // Gray specular color
-      u_shininess: 16.0, // Shininess factor
+      u_ambientColor: [1, 0.8, 0, 1],
+      u_diffuseColor: [1, 0.8, 0, 1],
+      u_specularColor: [1, 0.8, 0, 1],
+      u_shininess: 16.0,
     });
 
     // Draw the destination
@@ -751,44 +781,141 @@ function drawTrafficLights(viewProjectionMatrix) {
 
 // Draw roads
 function drawRoads(viewProjectionMatrix) {
-  gl.bindVertexArray(cubeVAO);
   roads.forEach((road) => {
-    // Create a world matrix for the road
-    let worldMatrix = twgl.m4.identity();
-    worldMatrix = twgl.m4.translate(worldMatrix, [
-      road.x,
-      road.y - 0.7,
-      road.z,
-    ]);
+    // Dibujar el pavimento de la calle
+    {
+      gl.bindVertexArray(cubeVAO);
 
-    // Adjust scale based on direction
-    let scale = [2.0, 0.5, 10.0]; // Default scale
-    if (road.direction === "horizontal") {
-      scale = [10.0, 0.5, 2.0];
+      let worldMatrix = twgl.m4.identity();
+      worldMatrix = twgl.m4.translate(worldMatrix, [
+        road.x,
+        road.y - 0.7,
+        road.z,
+      ]);
+
+      // Ajustar la escala según la dirección
+      let scale;
+      if (road.direction === 0 || road.direction === 2) {
+        // Dirección horizontal (derecha o izquierda)
+        scale = [1.0, 0.05, 0.9];
+      } else if (road.direction === 1 || road.direction === 3) {
+        // Dirección vertical (arriba o abajo)
+        scale = [0.9, 0.05, 1.0];
+      }
+
+      worldMatrix = twgl.m4.scale(worldMatrix, scale);
+
+      const worldViewProjectionMatrix = twgl.m4.multiply(
+        viewProjectionMatrix,
+        worldMatrix
+      );
+
+      twgl.setUniforms(programInfo, {
+        u_worldViewProjection: worldViewProjectionMatrix,
+        u_world: worldMatrix,
+        u_worldInverseTranspose: twgl.m4.transpose(
+          twgl.m4.inverse(worldMatrix)
+        ),
+        u_ambientColor: [0.2, 0.2, 0.2, 1], // Color gris oscuro para el pavimento
+        u_diffuseColor: [0.2, 0.2, 0.2, 1],
+        u_specularColor: [0.1, 0.1, 0.1, 1],
+        u_shininess: 8.0,
+      });
+
+      twgl.drawBufferInfo(gl, cubeBufferInfo);
     }
 
-    worldMatrix = twgl.m4.scale(worldMatrix, scale); // Scale as needed
+    // Dibujar los bordes laterales de la calle
+    {
+      gl.bindVertexArray(cubeVAO);
 
-    // Calculate the world-view-projection matrix
-    const worldViewProjectionMatrix = twgl.m4.multiply(
-      viewProjectionMatrix,
-      worldMatrix
-    );
+      // Configurar matrices y escalas para los bordes
+      let edge1WorldMatrix = twgl.m4.identity();
+      let edge2WorldMatrix = twgl.m4.identity();
 
-    // Set uniforms specific to the road
-    twgl.setUniforms(programInfo, {
-      u_worldViewProjection: worldViewProjectionMatrix,
-      u_world: worldMatrix,
-      u_worldInverseTranspose: twgl.m4.transpose(twgl.m4.inverse(worldMatrix)),
-      u_ambientColor: [0.3, 0.3, 0.3, 1], // Brown ambient color
-      u_diffuseColor: [0.3, 0.3, 0.3, 1], // Brown diffuse color
-      u_specularColor: [0.3, 0.3, 0.3, 1], // Dark gray specular color
-      u_shininess: 8.0, // Shininess factor
-    });
+      let edgeScale;
+      let edge1Position;
+      let edge2Position;
 
-    // Draw the road
-    twgl.drawBufferInfo(gl, cubeBufferInfo);
+      if (road.direction === 0 || road.direction === 2) {
+        // Calle horizontal
+        edgeScale = [0.05, 0.051, 0.9]; // Borde delgado a lo largo del eje Z
+        edge1Position = [road.x - 0.5, road.y - 0.675, road.z]; // Borde izquierdo
+        edge2Position = [road.x + 0.5, road.y - 0.675, road.z]; // Borde derecho
+      } else if (road.direction === 1 || road.direction === 3) {
+        // Calle vertical
+        edgeScale = [0.9, 0.051, 0.05]; // Borde delgado a lo largo del eje X
+        edge1Position = [road.x, road.y - 0.675, road.z - 0.5]; // Borde inferior
+        edge2Position = [road.x, road.y - 0.675, road.z + 0.5]; // Borde superior
+      }
+
+      // Dibujar el primer borde
+      {
+        let worldMatrix = twgl.m4.identity();
+        worldMatrix = twgl.m4.translate(worldMatrix, edge1Position);
+        worldMatrix = twgl.m4.scale(worldMatrix, edgeScale);
+
+        const worldViewProjectionMatrix = twgl.m4.multiply(
+          viewProjectionMatrix,
+          worldMatrix
+        );
+
+        twgl.setUniforms(programInfo, {
+          u_worldViewProjection: worldViewProjectionMatrix,
+          u_world: worldMatrix,
+          u_worldInverseTranspose: twgl.m4.transpose(
+            twgl.m4.inverse(worldMatrix)
+          ),
+          u_ambientColor: [1.0, 1.0, 1.0, 1], // Color blanco para el borde
+          u_diffuseColor: [1.0, 1.0, 1.0, 1],
+          u_specularColor: [0.8, 0.8, 0.8, 1],
+          u_shininess: 16.0,
+        });
+
+        twgl.drawBufferInfo(gl, cubeBufferInfo);
+      }
+
+      // Dibujar el segundo borde
+      {
+        let worldMatrix = twgl.m4.identity();
+        worldMatrix = twgl.m4.translate(worldMatrix, edge2Position);
+        worldMatrix = twgl.m4.scale(worldMatrix, edgeScale);
+
+        const worldViewProjectionMatrix = twgl.m4.multiply(
+          viewProjectionMatrix,
+          worldMatrix
+        );
+
+        twgl.setUniforms(programInfo, {
+          u_worldViewProjection: worldViewProjectionMatrix,
+          u_world: worldMatrix,
+          u_worldInverseTranspose: twgl.m4.transpose(
+            twgl.m4.inverse(worldMatrix)
+          ),
+          u_ambientColor: [1.0, 1.0, 1.0, 1], // Color blanco para el borde
+          u_diffuseColor: [1.0, 1.0, 1.0, 1],
+          u_specularColor: [0.8, 0.8, 0.8, 1],
+          u_shininess: 16.0,
+        });
+
+        twgl.drawBufferInfo(gl, cubeBufferInfo);
+      }
+    }
   });
+}
+
+// Función para actualizar la visualización de estadísticas
+function updateStatsDisplay(stats) {
+  const statsDiv = document.getElementById("stats");
+  if (statsDiv) {
+    statsDiv.innerHTML = `
+      <p>Pasos Simulación: ${stats.pasos_simulacion}</p>
+      <p>Coches creados: ${stats.coches_creados}</p>
+      <p>Coches al destino: ${stats.coches_al_destino}</p>
+      <p>Coches en el grid: ${stats.coches_en_el_grid}</p>
+      <p>Accidentes: ${stats.accidentes}</p>
+    `;
+  }
 }
 
 // Setup GUI for Camera and Lighting Controls
@@ -855,7 +982,7 @@ function setupCamera() {
   const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight; // Aspect ratio
   const projectionMatrix = twgl.m4.perspective(fov, aspect, 1, 200);
 
-  const target = [10, 0, 10]; // Look at the center
+  const target = [mapWidth/2, 0, mapHeight/2]; // Look at the center
   const up = [0, 1, 0];
   const cameraMatrix = twgl.m4.lookAt(
     [cameraPosition.x, cameraPosition.y, cameraPosition.z],
