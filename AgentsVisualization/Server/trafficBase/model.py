@@ -131,11 +131,11 @@ class RandomModel(Model):
             for corner in range(4):
                 self._add_random_coche(corner)
         
-        # Registrar pasos totales al destino
-        #for agent in self.schedule.agents:
-        #   if isinstance(agent, Coche) and agent.pos == agent.destino.pos:
-        #      self.coches_destino += 1
-        #     self.pasos_totales += self.step_counter
+        #Registrar pasos totales al destino
+        for agent in self.schedule.agents:
+            if isinstance(agent, Coche) and agent.pos == agent.destino.pos:
+                self.coches_destino += 1
+                self.pasos_totales += self.step_counter
 
         # Avanzar la simulación
         self.schedule.step()
