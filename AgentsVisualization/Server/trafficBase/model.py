@@ -28,7 +28,6 @@ class RandomModel(Model):
             model_reporters={
                 "Coches Creados": lambda m: m.coches_creados,
                 "Coches al Destino": lambda m: m.coches_destino,
-                "Promedio Pasos al Destino": self._calcular_promedio_pasos,
                 "Accidentes": lambda m: m.total_accidentes,
                 "Coches en el Grid": self._contar_coches,
             }
@@ -83,7 +82,7 @@ class RandomModel(Model):
 
 
                 
-    def _add_random_coche(self):
+    def _add_random_coche(self, corner):
         """Añade un coche en una esquina aleatoria con un destino aleatorio."""
         corners = [
             (0, 0),  # Esquina superior izquierda
@@ -91,8 +90,7 @@ class RandomModel(Model):
             (self.height - 1, 0),  # Esquina inferior izquierda
             (self.height - 1, self.width - 1)  # Esquina inferior derecha
         ]
-        position = self.random.choice(corners)  # Seleccionar una esquina aleatoria
-        #position = (0, self.width - 1)
+        position = corners[corner]  # Seleccionar una esquina
 
         #Se le asigna un destino aleatorio
         destino_coche = self.random.choice(self.destinos)
@@ -125,8 +123,9 @@ class RandomModel(Model):
     def step(self):
         """Avanza la simulación un paso."""
         self.step_counter += 1
-        if self.step_counter % 2 == 0:
-            self._add_random_coche()
+        if self.step_counter % 10 == 0:
+            for corner in range(4):
+                self._add_random_coche(corner)
         
         # Registrar pasos totales al destino
         for agent in self.schedule.agents:
@@ -147,7 +146,6 @@ class RandomModel(Model):
         return {
             "coches_creados": self.coches_creados,
             "coches_al_destino": self.coches_destino,
-            "promedio_pasos_al_destino": self._calcular_promedio_pasos(),
             "accidentes": self.total_accidentes,
             "coches_en_el_grid": self._contar_coches()
         }

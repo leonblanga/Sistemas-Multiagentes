@@ -548,7 +548,7 @@ async function drawScene() {
   frameCount++;
   framesSinceUpdate++; // Increment frames since last update
 
-  if (frameCount % 30 === 0) {
+  if (frameCount % 15 === 0) {
     frameCount = 0;
     framesSinceUpdate = 0; // Reset frames since last update
     await update();
@@ -570,9 +570,8 @@ function updateStatsDisplay(stats) {
     statsDiv.innerHTML = `
       <p>Coches creados: ${stats.coches_creados}</p>
       <p>Coches al destino: ${stats.coches_al_destino}</p>
-      <p>Promedio de pasos al destino: ${stats.promedio_pasos_al_destino.toFixed(2)}</p>
-      <p>Accidentes: ${stats.accidentes}</p>
       <p>Coches en el grid: ${stats.coches_en_el_grid}</p>
+      <p>Accidentes: ${stats.accidentes}</p>
     `;
   }
 }
@@ -591,7 +590,7 @@ function drawCars(viewProjectionMatrix) {
   gl.bindVertexArray(carVAO);
   Object.values(cars).forEach((car) => {
     // Interpolation factor between 0 and 1
-    const t = framesSinceUpdate / 30; // Interpolation factor between 0 and 1
+    const t = framesSinceUpdate / 15; // Interpolation factor between 0 and 1
 
     // Interpolated position
     const x = car.prevX + (car.x - car.prevX) * t;
