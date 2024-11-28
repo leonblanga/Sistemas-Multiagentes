@@ -29,7 +29,7 @@ class Semaforo(Agent):
 class Calle(Agent):
     def __init__(self, unique_id, model, direction):
         super().__init__(unique_id, model)
-        self.direction = direction  # Dirección de la calle (0: derecha, 1: arriba, 2: izquierda, 3: abajo)
+        self.direction = direction  # Dirección de la calle (0: arriba, 1: derecha, 2: abajo, 3: izquierda)
 
     def step(self):
         pass 

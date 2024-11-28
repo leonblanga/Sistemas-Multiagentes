@@ -57,7 +57,7 @@ let gl, programInfo, carBufferInfo, cubeBufferInfo, obstacleBufferInfo, destinat
 let carVAO, cubeVAO, obstacleVAO, destinationVAO;
 
 // Define the camera position
-let cameraPosition = { x: 10, y: 40, z: 20 };
+let cameraPosition = { x: 15, y: 40, z: -15 };
 
 // Initialize the frame count
 let frameCount = 0;
@@ -72,7 +72,7 @@ const lightingSettings = {
   ambientLight: [0.2, 0.2, 0.2, 1.0],
   diffuseLight: [0.7, 0.7, 0.7, 1.0],
   specularLight: [1.0, 1.0, 1.0, 1.0],
-  lightPosition: { x: 7, y: 10, z: 7 },
+  lightPosition: { x: 7, y: 30, z: 7 },
 };
 
 // Color array for cars
@@ -530,8 +530,8 @@ function drawEntities(viewProjectionMatrix) {
 function drawCars(viewProjectionMatrix) {
   gl.bindVertexArray(carVAO);
   Object.values(cars).forEach((car) => {
-    // Interpolation factor between 0 and 1
-    const t = framesSinceUpdate / 5; // Interpolation factor between 0 and 1
+    // Interpolation factor
+    const t = framesSinceUpdate / 5; 
 
     // Interpolated position
     const x = car.prevX + (car.x - car.prevX) * t;
