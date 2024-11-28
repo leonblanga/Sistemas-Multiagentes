@@ -86,17 +86,33 @@ const carColors = [
   [0.5, 0, 0.5, 1],    // Purple
 ];
 
-// Main function
+// Function to compile and link shaders with error checking
+function createProgram(gl, vsSource, fsSource) {
+  const program = twgl.createProgramInfo(gl, [vsSource, fsSource]);
+
+  if (!program.program) {
+      console.error("Shader program failed to link.");
+      const log = gl.getProgramInfoLog(program.program);
+      console.error(log);
+      return null;
+  }
+
+  return program;
+}
+
 async function main() {
   const canvas = document.querySelector("canvas");
   gl = canvas.getContext("webgl2");
   if (!gl) {
-    console.error("WebGL2 not supported");
-    return;
+      console.error("WebGL2 not supported");
+      return;
   }
 
-  // Compile shaders and link program
-  programInfo = twgl.createProgramInfo(gl, [vs_phong, fs_phong]);
+  // Compile shaders and link program with error checking
+  programInfo = createProgram(gl, vs_phong, fs_phong);
+  if (!programInfo) {
+      return; // Exit if shader program failed to link
+  }
 
   // Load and parse car model
   const carObjContent = await loadOBJFile("./objects/coche.obj");
@@ -148,7 +164,7 @@ async function main() {
     }
   }
 
-  // Generate cube data for traffic lights
+  // Generate cube data for traffic lights and roads
   const cubeData = generateCubeData(1);
   cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, cubeData);
   cubeVAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
@@ -497,6 +513,7 @@ async function fetchDynamicAgents() {
           y: y + 1, // Elevar la posición en 'y' una unidad
           z: z,
           state: agent.state, // Use agent.green
+          direction: agent.direction,
         });
       }
     });
@@ -550,9 +567,31 @@ async function drawScene() {
       lightingSettings.lightPosition.y,
       lightingSettings.lightPosition.z,
     ],
-    u_ambientLight: lightingSettings.ambientLight,
-    u_diffuseLight: lightingSettings.diffuseLight,
-    u_specularLight: lightingSettings.specularLight,
+    u_ambientLight: lightingSettings.ambientLight.slice(0, 3),
+    u_diffuseLight: lightingSettings.diffuseLight.slice(0, 3),
+    u_specularLight: lightingSettings.specularLight.slice(0, 3),
+  });
+
+  // Collect traffic light positions and colors
+  const MAX_POINT_LIGHTS = 14;
+  const pointLightPositions = new Float32Array(MAX_POINT_LIGHTS * 3);
+  const pointLightColors = new Float32Array(MAX_POINT_LIGHTS * 4);
+
+  trafficLights.forEach((light, index) => {
+    if (index >= MAX_POINT_LIGHTS) return; // Limit to MAX_POINT_LIGHTS
+    pointLightPositions.set([light.x, light.y, light.z], index * 3);
+    if (light.state) { // Green light
+      pointLightColors.set([0.0, 1.0, 0.0, 1.0], index * 4);
+    } else { // Red light
+      pointLightColors.set([1.0, 0.0, 0.0, 1.0], index * 4);
+    }
+  });
+
+  // Set point light uniforms
+  twgl.setUniforms(programInfo, {
+    u_numPointLights: Math.min(trafficLights.length, MAX_POINT_LIGHTS),
+    u_pointLightPositions: pointLightPositions,
+    u_pointLightColors: pointLightColors,
   });
 
   drawGround(viewProjectionMatrix);
@@ -561,7 +600,7 @@ async function drawScene() {
   frameCount++;
   framesSinceUpdate++; // Increment frames since last update
 
-  if (frameCount % 5 === 0) {
+  if (frameCount % 20 === 0) {
     frameCount = 0;
     framesSinceUpdate = 0; // Reset frames since last update
     await update();
@@ -590,7 +629,7 @@ function drawCars(viewProjectionMatrix) {
   gl.bindVertexArray(carVAO);
   Object.values(cars).forEach((car) => {
     // Interpolation factor between 0 and 1
-    const t = framesSinceUpdate / 5; // Interpolation factor between 0 and 1
+    const t = framesSinceUpdate / 20; // Interpolation factor between 0 and 1
 
     // Interpolated position
     const x = car.prevX + (car.x - car.prevX) * t;
@@ -752,26 +791,23 @@ function drawTrafficLights(viewProjectionMatrix) {
     // Create a world matrix for the traffic light
     let worldMatrix = twgl.m4.identity();
     worldMatrix = twgl.m4.translate(worldMatrix, [light.x, light.y, light.z]);
-    worldMatrix = twgl.m4.scale(worldMatrix, [0.5, 0.5, 0.5]); // Scale as needed
+    worldMatrix = twgl.m4.scale(worldMatrix, [0.5, 0.5, 0.5]); // Adjust as needed
 
     // Calculate the world-view-projection matrix
-    const worldViewProjectionMatrix = twgl.m4.multiply(
-      viewProjectionMatrix,
-      worldMatrix
-    );
+    const worldViewProjectionMatrix = twgl.m4.multiply(viewProjectionMatrix, worldMatrix);
 
-    // Determine color based on light state
-    const color = light.state ? [0, 1, 0, 1] : [1, 0, 0, 1]; // Green or Red
+    // Determine material color based on light state
+    const color = light.state ? [0.0, 1.0, 0.0, 1.0] : [1.0, 0.0, 0.0, 1.0]; // Green or Red
 
     // Set uniforms specific to the traffic light
     twgl.setUniforms(programInfo, {
       u_worldViewProjection: worldViewProjectionMatrix,
       u_world: worldMatrix,
       u_worldInverseTranspose: twgl.m4.transpose(twgl.m4.inverse(worldMatrix)),
-      u_ambientColor: [0.1, 0.1, 0.1, 1], // Low ambient color
-      u_diffuseColor: color, // Green or Red diffuse color
-      u_specularColor: [0.5, 0.5, 0.5, 1], // Gray specular color
-      u_shininess: 16.0, // Shininess factor
+      u_ambientColor: color, // Use the same color
+      u_diffuseColor: color,
+      u_specularColor: [1.0, 1.0, 1.0, 1.0], // White specular color
+      u_shininess: 64.0, // Make it shiny to emphasize the light
     });
 
     // Draw the traffic light

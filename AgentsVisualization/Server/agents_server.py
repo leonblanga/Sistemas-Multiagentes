@@ -80,6 +80,7 @@ def get_dynamic_agents():
             }
             if isinstance(agent, Semaforo):
                 agent_data["state"] = agent.green  # Estado del semáforo
+                agent_data["direction"] = agent.direction  # Dirección de la calle a la que pertenece
             if isinstance(agent, Coche):
                 agent_data["destination"] = agent.destino.unique_id if agent.destino else None
                 agent_data["recent_positions"] = agent.recent_positions  # Historial de posiciones recientes

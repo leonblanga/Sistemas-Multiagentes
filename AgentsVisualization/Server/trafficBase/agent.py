@@ -12,11 +12,12 @@ class Edificio(Agent):
 
 class Semaforo(Agent):
     """ Agente semáforo que alterna entre rojo y verde. """
-    def __init__(self, unique_id, model, change_interval):
+    def __init__(self, unique_id, model, change_interval, direction):
         super().__init__(unique_id, model)
         self.change_interval = change_interval
         self.time_elapsed = 0  # Tiempo transcurrido desde el último cambio
         self.green = True  # Estado inicial del semáforo: verde
+        self.direction = None  # Dirección de la calle a la que pertenece
 
     def step(self):
         """Actualiza el estado del semáforo según el intervalo de cambio."""

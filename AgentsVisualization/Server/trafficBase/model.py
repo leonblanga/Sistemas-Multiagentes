@@ -49,25 +49,31 @@ class RandomModel(Model):
                     self.grid.place_agent(edificio, (x, y))
                 elif cell == "A" or cell == "B" or cell == "i" or cell == "d":  # Si la celda tiene un semáforo
                     interval = 5 if cell == "A" or cell == "B" else 5  # Intervalo personalizado según el tipo de semáforo
-                    semaforo = Semaforo(f"Semaforo-{x}-{y}", self, change_interval=interval)
-                    semaforo.green = True if cell == "A" or cell == "B" else False  # Estado inicial personalizado
                     if cell == "A":
                         street = Calle(f"Calle-{x}-{y}", self, direction=0)
+                        semaforo = Semaforo(f"Semaforo-{x}-{y}", self, change_interval=interval, direction=0)
+                        semaforo.green = True # Estado inicial
                         self.grid.place_agent(semaforo, (x, y))
                         self.schedule.add(semaforo)
                         self.grid.place_agent(street, (x, y))
                     elif cell == "B":
                         street = Calle(f"Calle-{x}-{y}", self, direction=2)
+                        semaforo = Semaforo(f"Semaforo-{x}-{y}", self, change_interval=interval, direction=2)
+                        semaforo.green = True # Estado inicial
                         self.grid.place_agent(semaforo, (x, y))
                         self.schedule.add(semaforo)
                         self.grid.place_agent(street, (x, y))
                     if cell == "i":
                         street = Calle(f"Calle-{x}-{y}", self, direction=3)
+                        semaforo = Semaforo(f"Semaforo-{x}-{y}", self, change_interval=interval, direction=3)
+                        semaforo.green = False # Estado inicial
                         self.grid.place_agent(semaforo, (x, y))
                         self.schedule.add(semaforo)
                         self.grid.place_agent(street, (x, y))
                     if cell == "d":
                         street = Calle(f"Calle-{x}-{y}", self, direction=1)
+                        semaforo = Semaforo(f"Semaforo-{x}-{y}", self, change_interval=interval, direction=1)
+                        semaforo.green = False # Estado inicial
                         self.grid.place_agent(semaforo, (x, y))
                         self.schedule.add(semaforo)
                         self.grid.place_agent(street, (x, y))

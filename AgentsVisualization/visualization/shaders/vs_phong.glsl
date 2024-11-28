@@ -1,31 +1,30 @@
 #version 300 es
+
+precision highp float;
+
+// Attributes
 in vec4 a_position;
 in vec3 a_normal;
+in vec2 a_texCoord;
+in vec4 a_color;
 
-//Global uniform
-uniform vec3 u_viewWorldPosition;
-uniform vec3 u_lightWorldPosition;
-
-//Model Uniforms
-uniform mat4 u_world;
-uniform mat4 u_worldInverseTransform;
+// Uniforms
 uniform mat4 u_worldViewProjection;
+uniform mat4 u_world;
+uniform mat4 u_worldInverseTranspose;
 
-//Pass the transformed vectors to the fragment shaded
+// Varyings
 out vec3 v_normal;
-out vec3 v_cameraDirection;
-out vec3 v_lightDirection;
+out vec3 v_worldPosition;
 
 void main() {
+    // Calculate world position of the vertex
+    vec4 worldPosition = u_world * a_position;
+    v_worldPosition = worldPosition.xyz;
+
+    // Transform the normal to world space
+    v_normal = mat3(u_worldInverseTranspose) * a_normal;
+
+    // Set the final position of the vertex
     gl_Position = u_worldViewProjection * a_position;
-    
-    //Apply the object transformation to the normal vector
-    v_normal = mat3(u_world) * a_normal;
-
-    // Vertex position with object transformations
-    vec3 transformedPosition = (u_world * a_position).xyz;
-
-    //Get vectors to the light and to the camera
-    v_lightDirection = u_lightWorldPosition - transformedPosition;
-    v_cameraDirection = u_viewWorldPosition - transformedPosition;
 }
