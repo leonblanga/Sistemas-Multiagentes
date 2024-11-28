@@ -57,7 +57,7 @@ let gl, programInfo, carBufferInfo, cubeBufferInfo, obstacleBufferInfo, destinat
 let carVAO, cubeVAO, obstacleVAO, destinationVAO;
 
 // Define the camera position
-let cameraPosition = { x: 15, y: 40, z: -15 };
+let cameraPosition = { x: 40, y: 45, z: 15 };
 
 // Initialize the frame count
 let frameCount = 0;

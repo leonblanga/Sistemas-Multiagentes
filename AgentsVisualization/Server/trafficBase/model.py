@@ -97,10 +97,12 @@ class RandomModel(Model):
             (self.height - 1, 0),  # Esquina inferior izquierda
             (self.height - 1, self.width - 1)  # Esquina inferior derecha
         ]
-        for obj in corners[corner]:
-            if obj in self.reservas:
-                return # No añadir coche si la esquina está reservada
-            position = corners[corner]
+
+        position = corners[corner]
+
+        # Checar si esta reservado
+        if position in self.reservas:
+            return
 
         #Se le asigna un destino aleatorio
         destino_coche = self.random.choice(self.destinos)
@@ -109,6 +111,8 @@ class RandomModel(Model):
         self.grid.place_agent(coche, position)
         self.schedule.add(coche)
         self.coches_creados += 1
+        self.reservas[position] = coche.unique_id # Reservar la posición inicial
+        return True
 
     def _contar_coches(self):
         """Cuenta cuántos coches están en el grid."""
@@ -133,9 +137,16 @@ class RandomModel(Model):
     def step(self):
         """Avanza la simulación un paso."""
         self.step_counter += 1
+        coches_agregados = False
         if self.step_counter % 10 == 0:
             for corner in range(4):
-                self._add_random_coche(corner)
+                if self._add_random_coche(corner):
+                    coches_agregados = True
+            
+            # Detener la simulación si no se agregaron coches
+            if not coches_agregados:
+                self.running = False
+
         
         #Registrar pasos totales al destino
         for agent in self.schedule.agents:
