@@ -88,16 +88,16 @@ const carColors = [
 
 // Function to compile and link shaders with error checking
 function createProgram(gl, vsSource, fsSource) {
-  const program = twgl.createProgramInfo(gl, [vsSource, fsSource]);
+  const programInfo = twgl.createProgramInfo(gl, [vsSource, fsSource]);
 
-  if (!program.program) {
-      console.error("Shader program failed to link.");
-      const log = gl.getProgramInfoLog(program.program);
-      console.error(log);
-      return null;
+  if (!programInfo.program) {
+    console.error("Shader program failed to link.");
+    const log = gl.getProgramInfoLog(programInfo.program);
+    console.error(log);
+    return null;
   }
 
-  return program;
+  return programInfo;
 }
 
 async function main() {
@@ -459,6 +459,7 @@ async function fetchStaticAgents() {
 }
 
 // Fetch dynamic agents
+// Fetch dynamic agents
 async function fetchDynamicAgents() {
   try {
     const response = await fetch(`${agent_server_uri}getDynamicAgents`);
@@ -471,9 +472,17 @@ async function fetchDynamicAgents() {
 
     // Update 'cars' and 'trafficLights'
     const newCarIds = [];
-    dynamicAgents.forEach((agent) => {
+    dynamicAgents.forEach((agent, index) => {
+      console.log(`Agent ${index + 1}:`, agent); // Log completo del agente
       const agentType = agent.type;
       const pos = agent.pos; // [x, y]
+      
+      // Verificar que 'pos' está definido y tiene al menos 2 elementos
+      if (!pos || pos.length < 2) {
+        console.warn(`Semáforo ${index + 1} tiene una posición inválida: ${JSON.stringify(pos)}`);
+        return; // Omite este agente
+      }
+
       const x = pos[0];
       const z = pos[1];
       const y = 0; // Assuming y = 0
@@ -508,11 +517,17 @@ async function fetchDynamicAgents() {
         }
         newCarIds.push(carId);
       } else if (agentType === "Semaforo") {
+        // Verificar que 'agent.state' existe
+        if (agent.state === undefined) {
+          console.warn(`Semáforo ${index + 1} no tiene la propiedad 'state'.`);
+          return; // Omitir este semáforo
+        }
+
         trafficLights.push({
           x: x,
           y: y + 1, // Elevar la posición en 'y' una unidad
           z: z,
-          state: agent.state, // Use agent.green
+          state: agent.state, // Asignar correctamente el estado
           direction: agent.direction,
         });
       }
@@ -524,10 +539,14 @@ async function fetchDynamicAgents() {
         delete cars[carId];
       }
     });
+
+    console.log(`Total de Semáforos Procesados: ${trafficLights.length}`);
   } catch (error) {
     console.error("Error fetching dynamic agents:", error);
   }
 }
+
+
 
 async function fetchStats() {
   try {
@@ -573,18 +592,18 @@ async function drawScene() {
   });
 
   // Collect traffic light positions and colors
-  const MAX_POINT_LIGHTS = 14;
+  const MAX_POINT_LIGHTS = 28;
   const pointLightPositions = new Float32Array(MAX_POINT_LIGHTS * 3);
   const pointLightColors = new Float32Array(MAX_POINT_LIGHTS * 4);
 
-  trafficLights.forEach((light, index) => {
-    if (index >= MAX_POINT_LIGHTS) return; // Limit to MAX_POINT_LIGHTS
+  trafficLights.slice(0, MAX_POINT_LIGHTS).forEach((light, index) => {
     pointLightPositions.set([light.x, light.y, light.z], index * 3);
-    if (light.state) { // Green light
+    if (light.state) { // Verde
       pointLightColors.set([0.0, 1.0, 0.0, 1.0], index * 4);
-    } else { // Red light
+    } else { // Rojo
       pointLightColors.set([1.0, 0.0, 0.0, 1.0], index * 4);
     }
+    console.log(`Semáforo ${index + 1}: Posición = (${light.x}, ${light.y}, ${light.z}), Estado = ${light.state}`);
   });
 
   // Set point light uniforms

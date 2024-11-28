@@ -25,7 +25,7 @@ uniform vec4 u_specularColor;
 uniform float u_shininess;
 
 // Point Lights
-const int MAX_POINT_LIGHTS = 10;
+const int MAX_POINT_LIGHTS = 28;
 uniform int u_numPointLights;
 uniform vec3 u_pointLightPositions[MAX_POINT_LIGHTS];
 uniform vec4 u_pointLightColors[MAX_POINT_LIGHTS];
