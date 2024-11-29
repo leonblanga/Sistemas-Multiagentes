@@ -55,7 +55,7 @@ El objetivo es simular el comportamiento de coches autónomos en una ciudad simp
 ### **Pasos**
 1. **Clonar el repositorio**:
    ```bash
-   git clone https://github.com/usuario/multi-agent-city-simulation.git
+   git clone https://github.com/leonblanga/Sistemas-Multiagentes
    cd multi-agent-city-simulation
    ```
 2. **Ejecutar el servidor**:
@@ -70,7 +70,7 @@ El objetivo es simular el comportamiento de coches autónomos en una ciudad simp
    npx vite
    ```
 4. **Cargar la simulación**:
-   - Abre el enlace que muestra Vite en la terminal (generalmente `http://localhost:3000`) en un navegador compatible con WebGL para visualizar la simulación en 3D.
+   - Abre el enlace que muestra Vite en la terminal en un navegador compatible con WebGL para visualizar la simulación en 3D.
 
 ## Funcionalidades
 
